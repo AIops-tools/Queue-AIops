@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.AIops-tools/queue-aiops",
+  "title": "Queue AIops",
+  "description": "Governed redis + rabbitmq ops: memory/latency/backlog/churn RCA, policies. 26 tools.",
+  "repository": {
+    "url": "https://github.com/AIops-tools/Queue-AIops",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "queue-aiops",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
