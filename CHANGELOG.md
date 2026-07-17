@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.1.1 — 2026-07-17
+
+### Fixed
+- Added the MCP Registry ownership marker (mcp-name) to the README so the server publishes to the MCP Registry.
+
 ## v0.1.0 — 2026-07-17
 
 Initial preview release.

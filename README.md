@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.AIops-tools/queue-aiops -->
+
 # Queue AIops (preview)
 
 **Governed AI-ops for redis + rabbitmq.** queue-aiops is for the team running
