@@ -1,10 +1,16 @@
 ---
 name: queue-aiops
+slug: queue-aiops
+displayName: "Queue AIops"
+summary: "Governed redis + rabbitmq ops: memory/latency/backlog/churn RCA, policies. 28 tools."
+license: MIT
+homepage: https://github.com/AIops-tools/Queue-AIops
+tags: [aiops, mcp, governance, queue]
 description: >
   Use this skill whenever the user needs to operate a redis cache or a rabbitmq broker — a one-shot overview, redis memory posture (used vs maxmemory, eviction policy, fragmentation), SLOWLOG and a SCAN-budgeted big-key sample (never KEYS *), connected clients, CONFIG get/set, rabbitmq queues with backlog depth, connections/channels, policies and node watermark alarms, four flagship RCAs (redis memory pressure, redis latency/slowlog, rabbitmq queue backlog, connection churn on both platforms), and governed writes (set a config parameter, kill a client, declare/purge/delete a queue, set/delete a policy).
   Always use this skill for "redis", "rabbitmq", "maxmemory", "eviction", "evicted keys", "big key", "slowlog", "why is my cache slow", "queue backlog", "messages piling up", "no consumers", "unacked messages", "memory watermark", "connection churn", "purge a queue", "rabbitmq policy" when the context is a redis or rabbitmq deployment.
   Do NOT use when the target is something other than a redis/rabbitmq broker (a hypervisor, storage appliance, backup product, container-orchestration cluster, database server, monitoring stack, or OT/industrial equipment) — route those to the appropriate other AIops-tools skill. Managed cloud queue services and other broker products are out of scope.
-  Preview — governed broker operations with a built-in governance harness (audit, policy, token budget, undo, risk-tiers). Mock-validated only, not run against live production brokers; both platforms are free/self-hostable, so a lab container is the easiest live check.
+  Governed broker operations with a built-in governance harness (audit, policy, token budget, undo, risk-tiers). Behaviour is validated by a mock-based test suite; see docs/VERIFICATION.md for the live-verification checklist.
 installer:
   kind: uv
   package: queue-aiops
@@ -13,21 +19,20 @@ allowed-tools:
   - Bash
 metadata: {"openclaw":{"requires":{"env":["QUEUE_AIOPS_CONFIG"],"bins":["queue-aiops"],"config":["~/.queue-aiops/config.yaml","~/.queue-aiops/secrets.enc"]},"optional":{"env":["QUEUE_AIOPS_MASTER_PASSWORD"]},"primaryEnv":"QUEUE_AIOPS_CONFIG","homepage":"https://github.com/AIops-tools/Queue-AIops","emoji":"📬","os":["macos","linux"]}}
 compatibility: >
-  Standalone, self-governed broker operations across redis (RESP wire protocol via the redis Python client; password optional — auth-less lab instances are supported — TLS optional) and rabbitmq (management HTTP API /api/..., HTTP Basic auth with a monitoring/management-tagged user) — preview. Each target in the config names its own platform, and a name-keyed platform registry selects the protocol shape, so one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
+  Standalone, self-governed broker operations across redis (RESP wire protocol via the redis Python client; password optional — auth-less lab instances are supported — TLS optional) and rabbitmq (management HTTP API /api/..., HTTP Basic auth with a monitoring/management-tagged user). Each target in the config names its own platform, and a name-keyed platform registry selects the protocol shape, so one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.queue-aiops/ (relocatable via QUEUE_AIOPS_HOME).
   Credentials: the redis password (optional) or the rabbitmq management password is stored ENCRYPTED in ~/.queue-aiops/secrets.enc (Fernet/AES-128 + scrypt-derived key) — never plaintext on disk. Run 'queue-aiops init' to onboard (it asks for the platform), or 'queue-aiops secret set <target>' to add one. The store is unlocked by a master password from QUEUE_AIOPS_MASTER_PASSWORD (non-interactive/MCP/CI) or an interactive prompt (CLI on a TTY). A legacy plaintext env var QUEUE_<TARGET_NAME_UPPER>_SECRET is still honoured as a fallback with a deprecation warning (migrate with 'queue-aiops secret migrate'). The secret is presented as AUTH at connect time (redis) or HTTP Basic auth (rabbitmq) and held only in memory; secrets are never logged or echoed.
   State-changing operations pass through the @governed_tool decorator (pre-check + budget guard + audit + risk-tier gate). purge_queue and delete_queue are risk=high with dry_run + an approver gate; purge is irreversible (priorState = the message count about to be destroyed), and delete_queue's undo re-declares the captured queue definition — the messages are NOT restored. Reversible writes (redis_config_set, set_policy, delete_policy, declare_queue) capture the real fetched before-state and record an inverse undo descriptor.
   Safety: the redis surface is a typed command allow-list (no generic passthrough) and big-key sampling is SCAN-based under a hard budget — never KEYS *. rabbitmq path segments (queue/policy names and the default vhost '/') are percent-encoded centrally.
   Webhooks: none — no outbound network calls beyond the configured redis instances / rabbitmq management API.
   Transitive dependencies: the redis Python client, httpx (HTTP client), and the MCP SDK. No post-install scripts or background services.
-  PREVIEW: mock-validated only — not run against live production brokers. Both platforms are free/self-hostable, so a lab container is the easiest live check.
 ---
 
-# Queue AIops (preview)
+# Queue AIops
 
 > **Disclaimer**: Community-maintained open-source project, **not affiliated with, endorsed by, or sponsored by the Redis or RabbitMQ projects or their respective owners.** Redis and RabbitMQ are trademarks of their respective owners. Source at [github.com/AIops-tools/Queue-AIops](https://github.com/AIops-tools/Queue-AIops) under the MIT license.
 
-Governed broker operations — **26 MCP tools** across **redis** (RESP client) and
+Governed broker operations — **28 MCP tools** across **redis** (RESP client) and
 **rabbitmq** (management HTTP API), every one wrapped with the bundled
 `@governed_tool` harness: a local unified audit log under `~/.queue-aiops/`,
 policy engine, token/runaway budget guard, undo-token recording, and
@@ -37,9 +42,9 @@ rabbitmq management password is stored **encrypted**
 (`~/.queue-aiops/secrets.enc`, Fernet + scrypt) — never plaintext on disk.
 
 > **Standalone**: the governance harness is bundled in the package
-> (`queue_aiops.governance`) — no external skill-family dependency.
-> **Preview / mock-only**: not run against live production brokers; both
-> platforms are free/self-hostable, so a lab container is the easiest live check.
+> (`queue_aiops.governance`) — no external skill-family dependency. Behaviour is
+> covered by a mock-based test suite; `docs/VERIFICATION.md` is the checklist for a
+> live run (both platforms are free/self-hostable, so a lab container is enough).
 
 ## What This Skill Does
 
@@ -51,6 +56,7 @@ rabbitmq management password is stored **encrypted**
 | **Flagship analyses** | redis_memory_pressure_rca, redis_latency_rca, rabbitmq_queue_backlog_rca, connection_churn_analysis | 4 | read |
 | **Writes** | redis_config_set, redis_kill_client, declare_queue, set_policy, delete_policy | 5 | write (med) |
 | **Writes** | purge_queue, delete_queue | 2 | write (**high**) |
+| **Undo** | undo_list, undo_apply | 2 | read / write |
 
 The four flagship analyses are transparent heuristics that report their numbers,
 never a black-box verdict: `redis_memory_pressure_rca` reads used-vs-maxmemory +
@@ -100,35 +106,98 @@ skill.
 
 ## Common Workflows
 
-### Cache is out of memory / evicting
+### 1. Redis is near maxmemory and starting to evict
 
-1. `redis memory` → used vs maxmemory, policy, fragmentation
-2. `redis bigkeys` → SCAN-budgeted sample of the largest keys (with coverage %)
-3. `analyze memory` → ranked findings with numbers: noeviction-near-limit
-   (writes will OOM), active eviction, fragmentation vs swapping, oversized keys
+1. `queue-aiops doctor` → confirm the broker is reachable and the credential (if any)
+   works before you read numbers off it.
+2. `queue-aiops redis memory` → used vs `maxmemory`, the eviction policy in force, and
+   the fragmentation ratio, straight from `INFO memory`.
+3. `queue-aiops analyze memory --used-pct 85` → ranked findings, each citing its measured
+   number: **noeviction near the limit** (the dangerous one — writes will start failing
+   with OOM rather than evicting), active eviction in progress, fragmentation versus real
+   swapping, and oversized keys.
+4. `queue-aiops redis bigkeys --count 500` → a SCAN-budgeted sample of the largest keys,
+   reported **with its coverage %** so you know how much of the keyspace was actually
+   examined. A low coverage number means "no big key found" is not yet an answer.
+5. `queue-aiops redis keyspace` → which database the growth is in, to point the fix at
+   the right workload.
+6. If the policy is the problem: `queue-aiops redis config-get maxmemory*` to read the
+   current values, then
+   `queue-aiops redis config-set maxmemory-policy allkeys-lru --dry-run` and re-run for
+   real (double-confirm; the prior value is captured from `CONFIG GET` as the undo
+   descriptor).
+7. **Failure branch**: switching a cache from `noeviction` to an eviction policy means
+   Redis will start **deleting data** — if that instance is being used as a datastore
+   rather than a cache, this is the wrong fix and you need memory instead. Reverse it
+   immediately with `queue-aiops undo list` → `undo apply <id>`, which restores the
+   **prior** policy rather than a default. Note `config-set` changes the running config
+   only; if it must survive a restart, persist it in the config file too — the undo store
+   cannot help you with a value the broker forgot on its own.
 
-### Cache is slow
+### 2. Redis got slow
 
-1. `redis slowlog` → slowest entries
-2. `analyze latency` → slowlog digested by command pattern (O(N) commands
-   flagged with an incremental-variant suggestion), blocked clients, fork/AOF
-   stall signals from INFO persistence
+1. `queue-aiops redis slowlog --limit 50` → the slowest entries the broker itself
+   recorded.
+2. `queue-aiops analyze latency --slow-us 10000` → the slowlog digested **by command
+   pattern**, with O(N) commands flagged and an incremental variant suggested
+   (`KEYS` → `SCAN`, `SMEMBERS` → `SSCAN`), plus blocked-client counts and fork/AOF stall
+   signals read out of `INFO persistence`.
+3. `queue-aiops redis info` → confirm whether the stalls line up with background saves
+   (a fork stall is a persistence problem, not a query problem).
+4. `queue-aiops redis clients` → who is connected, and how many are blocked;
+   `queue-aiops analyze churn` → whether clients are reconnecting constantly, which shows
+   up as latency but is really a client-configuration bug.
+5. If one client is pathological: `queue-aiops redis kill-client --addr <ip:port>
+   --dry-run` then for real (double-confirm).
+6. **Failure branch**: `kill-client` is **irreversible and records no undo** — a killed
+   connection cannot be un-killed, and a well-behaved client will simply reconnect,
+   which fixes nothing while your kill is audited as a write. If latency does not
+   improve, the cause is more likely the O(N) command pattern from step 2: fix the
+   caller, not the connection. Killing clients in a loop will trip the runaway budget
+   guard.
 
-### Queue keeps growing
+### 3. A RabbitMQ queue keeps growing
 
-1. `rabbitmq queues` → deepest backlog first
-2. `analyze backlog` → per-queue cause: no consumers attached, consumers not
-   acking (unacked pileup), publish rate outpacing delivery — plus global
-   memory/disk watermark alarms that block every publisher
-3. If agreed: `rabbitmq purge <queue> --dry-run` → preview, then re-run with
-   double-confirm and an approver (`QUEUE_AUDIT_APPROVED_BY`)
+1. `queue-aiops rabbitmq overview` and `queue-aiops rabbitmq nodes` → check first for
+   **memory or disk watermark alarms**, which block every publisher on the node and make
+   every queue look broken at once.
+2. `queue-aiops rabbitmq queues --vhost /` → queues sorted deepest-backlog-first.
+3. `queue-aiops analyze backlog --vhost / --top 20` → the per-queue cause: **no consumers
+   attached**, consumers connected but **not acking** (an unacked pile-up), or a publish
+   rate simply outpacing delivery — each citing the measured counts.
+4. `queue-aiops rabbitmq queue <name>` → that queue's detail: consumer count, ready vs
+   unacked split, and its arguments.
+5. `queue-aiops rabbitmq connections` and `queue-aiops rabbitmq channels` → confirm
+   whether the consumers exist at all, and whether their prefetch is starving throughput.
+6. To cap unbounded growth while the consumer is fixed:
+   `queue-aiops rabbitmq set-policy backlog-cap '^orders\.' '{"max-length": 100000}'
+   --apply-to queues --dry-run`, then re-run for real (reversible — the prior policy is
+   captured for undo).
+7. **Failure branch**: do **not** reach for `rabbitmq purge` as a first response — it is
+   **irreversible, risk=high, and destroys real messages**; if the cause from step 3 was
+   "no consumers", those messages are the backlog your consumers still need. Purge only
+   with explicit sign-off, `--dry-run` read first, and `QUEUE_AUDIT_APPROVED_BY` set.
+   A `max-length` policy also **drops messages** once the cap is hit — if that is not
+   acceptable, `queue-aiops undo apply <id>` restores the prior policy and the real fix
+   is consumer capacity.
 
-### Change a config value safely (reversible)
+### 4. Retire a queue, reversibly
 
-1. `redis config-get maxmemory*` → current values
-2. `redis config-set maxmemory-policy allkeys-lru --dry-run` → preview
-3. Re-run without `--dry-run` (double-confirm) — it captures the prior value
-   from CONFIG GET and records an inverse undo descriptor
+1. `queue-aiops overview` → the broker-wide picture across configured targets.
+2. `queue-aiops rabbitmq queue <name> --vhost /` → confirm it is genuinely idle: zero
+   consumers, zero ready, zero unacked. A queue with messages is not a queue you retire.
+3. `queue-aiops rabbitmq policies` → check no policy still targets its name pattern, so
+   you are not leaving a dangling rule behind.
+4. `queue-aiops rabbitmq delete-queue <name> --vhost / --dry-run` → preview.
+5. Re-run without `--dry-run` (double-confirm, risk=high, approver required) — the write
+   captures the queue's definition first, so the undo descriptor **re-declares exactly
+   that queue** (durability and auto-delete flags included).
+6. `queue-aiops rabbitmq queues` → confirm it is gone and nothing else changed.
+7. **Failure branch**: `queue-aiops undo apply <id>` re-declares the queue from the
+   captured definition — but it restores the queue, **not its messages**, which are gone
+   with it. Bindings created outside this tool are not captured either. If the queue
+   turns out to have been in use, expect to re-create bindings by hand; that asymmetry is
+   why step 2 (proving it is idle) matters more than the undo does.
 
 ## Governance & Safety
 

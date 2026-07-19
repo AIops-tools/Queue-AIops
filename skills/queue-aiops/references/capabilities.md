@@ -28,7 +28,7 @@ Big-key sampling budget (named constants in `ops/redis_reads.py`):
 `/api/channels`, `/api/consumers`, `/api/policies[/{vhost}[/{name}]]`.
 The default vhost `/` is sent as `%2F`.
 
-## Tools (26)
+## Tools (28)
 
 ### Overview (1)
 
@@ -87,6 +87,13 @@ finding carries `cause`, `action`, and `evidence` numbers.
 Every write takes `dry_run` (MCP) / `--dry-run` + double-confirm (CLI). High
 risk requires an approver under the seeded `rules.yaml`
 (`QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE`).
+
+### Undo (2)
+
+| Tool | Returns |
+|------|---------|
+| `undo_list(limit?)` | recorded undo descriptors, newest first, with their `_undo_id` |
+| `undo_apply(undo_id, dry_run?)` | replays the recorded inverse (governed like any other write) |
 
 ## Environment variables
 

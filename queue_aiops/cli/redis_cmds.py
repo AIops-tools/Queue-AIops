@@ -52,7 +52,13 @@ def redis_clients(target: TargetOption = None) -> None:
     from queue_aiops.ops import redis_reads as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.list_clients(conn)))
+    result = ops.list_clients(conn)
+    console.print_json(json.dumps(result))
+    if result.get("truncated"):
+        console.print(
+            f"[yellow]… truncated at {result.get('limit')} rows — "
+            f"only the busiest clients are shown.[/yellow]"
+        )
 
 
 @redis_app.command("slowlog")
@@ -65,7 +71,13 @@ def redis_slowlog(
     from queue_aiops.ops import redis_reads as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.slowlog(conn, count)))
+    result = ops.slowlog(conn, count)
+    console.print_json(json.dumps(result))
+    if result.get("truncated"):
+        console.print(
+            f"[yellow]… truncated at {result.get('limit')} rows — "
+            f"re-run with a higher --count to see the rest.[/yellow]"
+        )
 
 
 @redis_app.command("config-get")

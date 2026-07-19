@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from queue_aiops.ops._util import as_obj, num, pct, s
+from queue_aiops.ops._util import as_obj, num, opt, pct, s
 
 # Hard bounds for the SCAN-based big-key sample (never KEYS *).
 SCAN_BUDGET_KEYS = 10_000  # max keys walked per call
@@ -33,10 +33,10 @@ def server_info(conn: Any) -> dict:
         info = as_obj(conn.redis_info())
         return {
             "platform": conn.target.platform,
-            "version": s(info.get("redis_version")),
-            "mode": s(info.get("redis_mode")),
+            "version": opt(info.get("redis_version")),
+            "mode": opt(info.get("redis_mode")),
             "uptimeSeconds": num(info.get("uptime_in_seconds")),
-            "role": s(info.get("role")),
+            "role": opt(info.get("role")),
             "connectedClients": num(info.get("connected_clients")),
             "blockedClients": num(info.get("blocked_clients")),
             "opsPerSec": num(info.get("instantaneous_ops_per_sec")),
@@ -61,10 +61,10 @@ def memory_stats(conn: Any) -> dict:
         stats = as_obj(conn.redis_memory_stats())
         return {
             "usedBytes": used,
-            "usedHuman": s(info.get("used_memory_human")),
+            "usedHuman": opt(info.get("used_memory_human")),
             "maxmemoryBytes": maxmem,
             "usedPctOfMax": pct(used, maxmem),
-            "maxmemoryPolicy": s(info.get("maxmemory_policy")),
+            "maxmemoryPolicy": opt(info.get("maxmemory_policy")),
             "fragmentationRatio": num(info.get("mem_fragmentation_ratio")),
             "rssBytes": num(info.get("used_memory_rss")),
             "peakBytes": num(info.get("used_memory_peak")),
@@ -82,14 +82,14 @@ def list_clients(conn: Any) -> dict:
         clients = conn.redis_client_list()
         rows = [
             {
-                "id": s(c.get("id"), 32),
-                "addr": s(c.get("addr"), 64),
-                "name": s(c.get("name"), 64),
+                "id": opt(c.get("id"), 32),
+                "addr": opt(c.get("addr"), 64),
+                "name": opt(c.get("name"), 64),
                 "ageSeconds": num(c.get("age")),
                 "idleSeconds": num(c.get("idle")),
-                "lastCommand": s(c.get("cmd"), 64),
-                "db": s(c.get("db"), 8),
-                "flags": s(c.get("flags"), 16),
+                "lastCommand": opt(c.get("cmd"), 64),
+                "db": opt(c.get("db"), 8),
+                "flags": opt(c.get("flags"), 16),
             }
             for c in clients
         ]
@@ -106,6 +106,9 @@ def list_clients(conn: Any) -> dict:
             "total": len(rows),
             "bySource": sources[:50],
             "clients": rows[:MAX_CLIENT_ROWS],
+            "returned": min(len(rows), MAX_CLIENT_ROWS),
+            "limit": MAX_CLIENT_ROWS,
+            "truncated": len(rows) > MAX_CLIENT_ROWS,
         }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
@@ -123,23 +126,42 @@ def _command_text(raw: Any) -> str:
 
 
 def slowlog(conn: Any, count: int = MAX_SLOWLOG_ROWS) -> dict:
-    """[READ] Recent SLOWLOG entries, slowest first."""
+    """[READ] Recent SLOWLOG entries, slowest first.
+
+    Returns a truncation envelope::
+
+        {"entries": [...], "returned": 128, "limit": 128, "truncated": true}
+
+    so a cut-off read announces itself. The slowest command on the server may be
+    the one just past the cut-off; a bare list cannot say "there is more", and a
+    smaller local model faced with a long result tends to report that nothing
+    came back at all. One extra entry is requested from Redis so ``truncated``
+    is *measured* rather than guessed from a length coincidence.
+    """
     try:
-        entries = conn.redis_slowlog(min(int(count), MAX_SLOWLOG_ROWS))
+        want = max(1, min(int(count), MAX_SLOWLOG_ROWS))
+        entries = conn.redis_slowlog(want + 1)
         rows = [
             {
                 "id": num(e.get("id")),
                 "startTime": num(e.get("start_time")),
                 "durationUs": num(e.get("duration")),
                 "command": _command_text(e.get("command")),
-                "clientAddr": s(e.get("client_address"), 64),
-                "clientName": s(e.get("client_name"), 64),
+                "clientAddr": opt(e.get("client_address"), 64),
+                "clientName": opt(e.get("client_name"), 64),
             }
             for e in entries
             if isinstance(e, dict)
         ]
         rows.sort(key=lambda r: r["durationUs"], reverse=True)
-        return {"total": len(rows), "entries": rows}
+        truncated = len(rows) > want
+        kept = rows[:want]
+        return {
+            "entries": kept,
+            "returned": len(kept),
+            "limit": want,
+            "truncated": truncated,
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
 
@@ -227,6 +249,12 @@ def big_key_sample(conn: Any, top: int = TOP_KEYS) -> dict:
                 "memorySampleMax": MEMORY_SAMPLE_MAX,
             },
             "topKeys": sized[: max(1, int(top))],
+            "returned": min(len(sized), max(1, int(top))),
+            "limit": max(1, int(top)),
+            # Measured against the sized sample. Note this is truncation of the
+            # *sample*, not of the keyspace — "coveragePct" is what tells you how
+            # much of the keyspace was walked at all.
+            "truncated": len(sized) > max(1, int(top)),
             "note": (
                 "SCAN-based sample under a hard budget (never KEYS *): sizes are "
                 "MEMORY USAGE on an evenly-spaced subset; coveragePct shows how "

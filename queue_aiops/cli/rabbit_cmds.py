@@ -51,7 +51,13 @@ def rabbit_queues(
     from queue_aiops.ops import rabbit_reads as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.list_queues(conn, vhost)))
+    result = ops.list_queues(conn, vhost)
+    console.print_json(json.dumps(result))
+    if result.get("truncated"):
+        console.print(
+            f"[yellow]… truncated at {result.get('limit')} rows — "
+            f"re-run with a higher limit to see the rest.[/yellow]"
+        )
 
 
 @rabbitmq_app.command("queue")
@@ -75,7 +81,13 @@ def rabbit_connections(target: TargetOption = None) -> None:
     from queue_aiops.ops import rabbit_reads as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.list_connections(conn)))
+    result = ops.list_connections(conn)
+    console.print_json(json.dumps(result))
+    if result.get("truncated"):
+        console.print(
+            f"[yellow]… truncated at {result.get('limit')} rows — "
+            f"re-run with a higher limit to see the rest.[/yellow]"
+        )
 
 
 @rabbitmq_app.command("channels")
@@ -85,7 +97,13 @@ def rabbit_channels(target: TargetOption = None) -> None:
     from queue_aiops.ops import rabbit_reads as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.list_channels(conn)))
+    result = ops.list_channels(conn)
+    console.print_json(json.dumps(result))
+    if result.get("truncated"):
+        console.print(
+            f"[yellow]… truncated at {result.get('limit')} rows — "
+            f"re-run with a higher limit to see the rest.[/yellow]"
+        )
 
 
 @rabbitmq_app.command("policies")
@@ -100,7 +118,13 @@ def rabbit_policies(
     from queue_aiops.ops import rabbit_reads as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.list_policies(conn, vhost)))
+    result = ops.list_policies(conn, vhost)
+    console.print_json(json.dumps(result))
+    if result.get("truncated"):
+        console.print(
+            f"[yellow]… truncated at {result.get('limit')} rows — "
+            f"re-run with a higher limit to see the rest.[/yellow]"
+        )
 
 
 @rabbitmq_app.command("nodes")

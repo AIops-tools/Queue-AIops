@@ -28,7 +28,7 @@ import re
 from typing import Any
 
 from queue_aiops.connection import QueueApiError
-from queue_aiops.ops._util import as_obj, num, s
+from queue_aiops.ops._util import as_obj, num, opt, s
 
 # CONFIG SET parameter names are plain words (e.g. maxmemory-policy); reject
 # anything else before it reaches the wire.
@@ -57,7 +57,7 @@ def config_set(conn: Any, parameter: str, value: str) -> dict:
             f"Config parameter '{parameter}' does not exist on this instance — "
             f"check the name with config_get first."
         )
-    prior_value = s(prior.get(parameter), 128)
+    prior_value = opt(prior.get(parameter), 128)
     conn.redis_config_set(parameter, str(value))
     return {
         "action": "config_set",
@@ -86,10 +86,10 @@ def kill_client(conn: Any, client_id: int = 0, addr: str = "") -> dict:
             addr and str(c.get("addr")) == str(addr)
         ):
             match = {
-                "id": s(c.get("id"), 32),
-                "addr": s(c.get("addr"), 64),
-                "name": s(c.get("name"), 64),
-                "lastCommand": s(c.get("cmd"), 64),
+                "id": opt(c.get("id"), 32),
+                "addr": opt(c.get("addr"), 64),
+                "name": opt(c.get("name"), 64),
+                "lastCommand": opt(c.get("cmd"), 64),
                 "ageSeconds": num(c.get("age")),
             }
             break
@@ -218,10 +218,10 @@ def _policy_or_none(conn: Any, vhost: str, name: str) -> dict | None:
             return None
         raise
     return {
-        "pattern": s(obj.get("pattern"), 128),
+        "pattern": opt(obj.get("pattern"), 128),
         "definition": as_obj(obj.get("definition")),
         "priority": num(obj.get("priority")),
-        "applyTo": s(obj.get("apply-to") or obj.get("apply_to") or "all", 32),
+        "applyTo": opt(obj.get("apply-to") or obj.get("apply_to") or "all", 32),
     }
 
 

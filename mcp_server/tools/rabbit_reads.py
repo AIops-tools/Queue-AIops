@@ -28,6 +28,10 @@ def list_queues(vhost: Optional[str] = None, target: Optional[str] = None) -> di
     Args:
         vhost: Restrict to one vhost (the default vhost is '/'); omit for all.
         target: rabbitmq target name from config; omit for the default.
+
+    Returns an envelope: {"queues": [...], "returned": N, "limit": L,
+    "truncated": bool}. When "truncated" is true there is more than was
+    returned — do not treat this as the complete set.
     """
     return ops.list_queues(_get_connection(target), vhost)
 
@@ -54,6 +58,10 @@ def list_connections(target: Optional[str] = None) -> dict:
 
     Args:
         target: rabbitmq target name from config; omit for the default.
+
+    Returns an envelope: {"connections": [...], "returned": N, "limit": L,
+    "truncated": bool}. When "truncated" is true there is more than was
+    returned — do not treat this as the complete set.
     """
     return ops.list_connections(_get_connection(target))
 
@@ -66,6 +74,10 @@ def list_channels(target: Optional[str] = None) -> dict:
 
     Args:
         target: rabbitmq target name from config; omit for the default.
+
+    Returns an envelope: {"channels": [...], "returned": N, "limit": L,
+    "truncated": bool}. When "truncated" is true there is more than was
+    returned — do not treat this as the complete set.
     """
     return ops.list_channels(_get_connection(target))
 
@@ -79,6 +91,10 @@ def list_policies(vhost: Optional[str] = None, target: Optional[str] = None) -> 
     Args:
         vhost: Restrict to one vhost (the default vhost is '/'); omit for all.
         target: rabbitmq target name from config; omit for the default.
+
+    Returns an envelope: {"policies": [...], "returned": N, "limit": L,
+    "truncated": bool}. When "truncated" is true there is more than was
+    returned — do not treat this as the complete set.
     """
     return ops.list_policies(_get_connection(target), vhost)
 

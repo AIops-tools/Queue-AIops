@@ -113,7 +113,8 @@ def test_redis_slowlog_forwards_count_option(monkeypatch):
     conn = _wire(monkeypatch, "redis_cmds", _redis())
     result = runner.invoke(app, ["redis", "slowlog", "--count", "7"])
     assert result.exit_code == 0, result.output
-    assert ("slowlog_get", 7) in _calls(conn)
+    # count + 1 is deliberate: the extra entry is how truncation is measured.
+    assert ("slowlog_get", 8) in _calls(conn)
 
 
 @pytest.mark.unit

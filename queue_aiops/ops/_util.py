@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from queue_aiops.governance import sanitize
+from queue_aiops.governance import opt_str, sanitize
 
 
 def as_obj(data: Any) -> dict:
@@ -23,6 +23,22 @@ def as_obj(data: Any) -> dict:
 def s(value: Any, limit: int = 256) -> str:
     """Sanitize an arbitrary value to a bounded, injection-safe string."""
     return sanitize(str(value if value is not None else ""), limit)
+
+
+def opt(value: Any, limit: int = 256) -> str | None:
+    """Sanitize an *optional* field, preserving the difference between absent and empty.
+
+    Companion to :func:`s`, which folds ``None`` into ``""``. Broker payloads are
+    full of genuinely-absent values: a queue with no consumers has no
+    ``consumer_tag``, a Redis replica reports no ``master_link_status`` when it
+    is a primary, and RabbitMQ omits ``idle_since`` for an active queue. "The
+    broker has nothing to report here" is a different fact from "the value is
+    blank", and only the second should read as empty.
+
+    Use this for anything read out of a response row; keep :func:`s` for values
+    that always exist (an exception message, a caller-supplied queue name).
+    """
+    return opt_str(value, limit)
 
 
 def pick(row: dict, *keys: str, default: Any = None) -> Any:

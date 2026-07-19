@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from queue_aiops.ops._util import as_obj, num, pick, rate, s
+from queue_aiops.ops._util import as_obj, num, opt, pick, rate, s
 
 MAX_ROWS = 200
 
@@ -25,9 +25,9 @@ def broker_overview(conn: Any) -> dict:
         churn = as_obj(obj.get("churn_rates"))
         return {
             "platform": conn.target.platform,
-            "version": s(pick(obj, "rabbitmq_version", "product_version")),
-            "clusterName": s(obj.get("cluster_name")),
-            "node": s(obj.get("node")),
+            "version": opt(pick(obj, "rabbitmq_version", "product_version")),
+            "clusterName": opt(obj.get("cluster_name")),
+            "node": opt(obj.get("node")),
             "messagesReady": num(totals.get("messages_ready")),
             "messagesUnacked": num(totals.get("messages_unacknowledged")),
             "messagesTotal": num(totals.get("messages")),
@@ -52,9 +52,9 @@ def broker_overview(conn: Any) -> dict:
 def _queue_row(q: dict) -> dict:
     stats = as_obj(q.get("message_stats"))
     return {
-        "name": s(q.get("name"), 128),
-        "vhost": s(q.get("vhost"), 64),
-        "state": s(q.get("state"), 32),
+        "name": opt(q.get("name"), 128),
+        "vhost": opt(q.get("vhost"), 64),
+        "state": opt(q.get("state"), 32),
         "durable": bool(q.get("durable")),
         "messages": num(q.get("messages")),
         "messagesReady": num(q.get("messages_ready")),
@@ -77,7 +77,13 @@ def list_queues(conn: Any, vhost: str | None = None) -> dict:
         )
         rows = [_queue_row(q) for q in conn.platform.rows(conn.get(path))]
         rows.sort(key=lambda r: r["messages"], reverse=True)
-        return {"total": len(rows), "queues": rows[:MAX_ROWS]}
+        return {
+            "queues": rows[:MAX_ROWS],
+            "returned": min(len(rows), MAX_ROWS),
+            "limit": MAX_ROWS,
+            "truncated": len(rows) > MAX_ROWS,
+            "total": len(rows),
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
 
@@ -96,8 +102,8 @@ def queue_detail(conn: Any, vhost: str, name: str) -> dict:
                 "autoDelete": bool(obj.get("auto_delete")),
                 "exclusive": bool(obj.get("exclusive")),
                 "arguments": as_obj(obj.get("arguments")),
-                "node": s(obj.get("node"), 64),
-                "idleSince": s(obj.get("idle_since"), 64),
+                "node": opt(obj.get("node"), 64),
+                "idleSince": opt(obj.get("idle_since"), 64),
                 "consumerUtilisation": num(
                     pick(obj, "consumer_capacity", "consumer_utilisation", default=0)
                 ),
@@ -113,10 +119,10 @@ def list_connections(conn: Any) -> dict:
     try:
         rows = [
             {
-                "name": s(c.get("name"), 128),
-                "peerHost": s(pick(c, "peer_host", default="(unknown)"), 64),
-                "user": s(c.get("user"), 64),
-                "state": s(c.get("state"), 32),
+                "name": opt(c.get("name"), 128),
+                "peerHost": opt(pick(c, "peer_host", default="(unknown)"), 64),
+                "user": opt(c.get("user"), 64),
+                "state": opt(c.get("state"), 32),
                 "channels": num(c.get("channels")),
                 "connectedAt": num(c.get("connected_at")),
                 "clientProduct": s(as_obj(c.get("client_properties")).get("product"), 64),
@@ -135,6 +141,9 @@ def list_connections(conn: Any) -> dict:
             "total": len(rows),
             "byPeerHost": sources[:50],
             "connections": rows[:MAX_ROWS],
+            "returned": min(len(rows), MAX_ROWS),
+            "limit": MAX_ROWS,
+            "truncated": len(rows) > MAX_ROWS,
         }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
@@ -145,10 +154,10 @@ def list_channels(conn: Any) -> dict:
     try:
         rows = [
             {
-                "name": s(c.get("name"), 128),
+                "name": opt(c.get("name"), 128),
                 "connection": s(as_obj(c.get("connection_details")).get("name"), 128),
-                "user": s(c.get("user"), 64),
-                "state": s(c.get("state"), 32),
+                "user": opt(c.get("user"), 64),
+                "state": opt(c.get("state"), 32),
                 "unacked": num(c.get("messages_unacknowledged")),
                 "prefetch": num(c.get("prefetch_count")),
                 "consumers": num(c.get("consumer_count")),
@@ -156,7 +165,13 @@ def list_channels(conn: Any) -> dict:
             for c in conn.platform.rows(conn.get(conn.platform.path("channels")))
         ]
         rows.sort(key=lambda r: r["unacked"], reverse=True)
-        return {"total": len(rows), "channels": rows[:MAX_ROWS]}
+        return {
+            "channels": rows[:MAX_ROWS],
+            "returned": min(len(rows), MAX_ROWS),
+            "limit": MAX_ROWS,
+            "truncated": len(rows) > MAX_ROWS,
+            "total": len(rows),
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
 
@@ -171,16 +186,22 @@ def list_policies(conn: Any, vhost: str | None = None) -> dict:
         )
         rows = [
             {
-                "name": s(p.get("name"), 128),
-                "vhost": s(p.get("vhost"), 64),
-                "pattern": s(p.get("pattern"), 128),
-                "applyTo": s(pick(p, "apply-to", "apply_to", default="all"), 32),
+                "name": opt(p.get("name"), 128),
+                "vhost": opt(p.get("vhost"), 64),
+                "pattern": opt(p.get("pattern"), 128),
+                "applyTo": opt(pick(p, "apply-to", "apply_to", default="all"), 32),
                 "priority": num(p.get("priority")),
                 "definition": as_obj(p.get("definition")),
             }
             for p in conn.platform.rows(conn.get(path))
         ]
-        return {"total": len(rows), "policies": rows[:MAX_ROWS]}
+        return {
+            "policies": rows[:MAX_ROWS],
+            "returned": min(len(rows), MAX_ROWS),
+            "limit": MAX_ROWS,
+            "truncated": len(rows) > MAX_ROWS,
+            "total": len(rows),
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
 
@@ -194,7 +215,7 @@ def node_health(conn: Any) -> dict:
             mem_limit = num(n.get("mem_limit"))
             rows.append(
                 {
-                    "name": s(n.get("name"), 64),
+                    "name": opt(n.get("name"), 64),
                     "running": bool(n.get("running", True)),
                     "memUsedBytes": mem_used,
                     "memLimitBytes": mem_limit,

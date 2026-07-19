@@ -26,7 +26,7 @@ import time
 from typing import Any
 
 from queue_aiops.ops import rabbit_reads, redis_reads
-from queue_aiops.ops._util import as_obj, num, pct, s
+from queue_aiops.ops._util import as_obj, num, opt, pct
 from queue_aiops.platform import REDIS
 
 MAX_ROWS = 100
@@ -68,7 +68,7 @@ def redis_memory_pressure_rca(
     """
     memory = as_obj(memory)
     used_of_max = num(memory.get("usedPctOfMax"))
-    policy = s(memory.get("maxmemoryPolicy"), 64)
+    policy = opt(memory.get("maxmemoryPolicy"), 64)
     frag = num(memory.get("fragmentationRatio"))
     maxmem = num(memory.get("maxmemoryBytes"))
     findings: list[dict] = []
@@ -184,8 +184,11 @@ def _digest_slowlog(entries: list[dict]) -> list[dict]:
     """Group slowlog entries by leading command word; slowest pattern first."""
     by_cmd: dict[str, dict] = {}
     for e in entries or []:
-        cmd = s(e.get("command"), 128)
-        word = (cmd.split(" ", 1)[0] or "(unknown)").upper()
+        cmd = opt(e.get("command"), 128)
+        # A slowlog entry whose command Redis did not report is null now, not
+        # "" — it cannot be split, and it groups under "(unknown)" rather than
+        # inventing an empty command name.
+        word = ((cmd or "").split(" ", 1)[0] or "(unknown)").upper()
         bucket = by_cmd.setdefault(
             word, {"command": word, "count": 0, "totalUs": 0.0, "maxUs": 0.0, "sample": cmd}
         )
@@ -376,7 +379,7 @@ def rabbitmq_queue_backlog_rca(
     for n in nodes or []:
         if n.get("memAlarm"):
             global_findings.append({
-                "cause": f"Node {s(n.get('name'))} memory alarm — the memory "
+                "cause": f"Node {opt(n.get('name'))} memory alarm — the memory "
                 f"high watermark is reached and ALL publishers are blocked",
                 "action": "Drain/purge the deepest queues or raise the "
                 "watermark/RAM; publishing resumes when usage drops.",
@@ -387,7 +390,7 @@ def rabbitmq_queue_backlog_rca(
             })
         if n.get("diskAlarm"):
             global_findings.append({
-                "cause": f"Node {s(n.get('name'))} disk alarm — free disk under "
+                "cause": f"Node {opt(n.get('name'))} disk alarm — free disk under "
                 f"the limit, publishers are blocked",
                 "action": "Free disk space (old logs, unused vhosts) or lower "
                 "disk_free_limit deliberately.",
@@ -403,15 +406,15 @@ def rabbitmq_queue_backlog_rca(
         if verdict is None:
             continue
         flagged.append({
-            "name": s(q.get("name"), 128),
-            "vhost": s(q.get("vhost"), 64),
+            "name": opt(q.get("name"), 128),
+            "vhost": opt(q.get("vhost"), 64),
             "messages": num(q.get("messages")),
             "messagesReady": num(q.get("messagesReady")),
             "messagesUnacked": num(q.get("messagesUnacked")),
             "consumers": num(q.get("consumers")),
             "publishRate": num(q.get("publishRate")),
             "deliverRate": num(q.get("deliverRate")),
-            "state": s(q.get("state"), 32),
+            "state": opt(q.get("state"), 32),
             **verdict,
         })
     flagged.sort(key=lambda e: e["messages"], reverse=True)
@@ -560,7 +563,7 @@ def connection_churn_analysis(snapshot: dict, history: dict | None = None) -> di
     finding can be pinned to an app. Every finding carries its numbers.
     """
     snapshot = as_obj(snapshot)
-    platform = s(snapshot.get("platform"), 32)
+    platform = opt(snapshot.get("platform"), 32)
     if platform == REDIS:
         findings, metrics = _redis_churn(snapshot, history)
     else:

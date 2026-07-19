@@ -74,7 +74,8 @@ def test_slowlog_sorts_slowest_first_and_folds_command_bytes():
          "command": ["HGETALL", b"big:hash"]},
     ])
     out = redis_reads.slowlog(conn)
-    assert out["total"] == 2
+    assert out["returned"] == 2
+    assert out["truncated"] is False
     assert out["entries"][0]["durationUs"] == 50_000
     assert "HGETALL" in out["entries"][0]["command"]
     assert out["entries"][1]["command"] == "GET k1"

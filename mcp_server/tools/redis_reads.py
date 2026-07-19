@@ -39,6 +39,10 @@ def redis_clients(target: Optional[str] = None) -> dict:
 
     Args:
         target: redis target name from config; omit for the default.
+
+    Returns an envelope: {"clients": [...], "returned": N, "limit": L,
+    "truncated": bool}. When "truncated" is true there is more than was
+    returned — do not treat this as the complete set.
     """
     return ops.list_clients(_get_connection(target))
 
@@ -52,6 +56,10 @@ def redis_slowlog(count: int = 128, target: Optional[str] = None) -> dict:
     Args:
         count: Max entries to pull (capped at 128).
         target: redis target name from config; omit for the default.
+
+    Returns an envelope: {"entries": [...], "returned": N, "limit": L,
+    "truncated": bool}. When "truncated" is true there is more than was
+    returned — do not treat this as the complete set.
     """
     return ops.slowlog(_get_connection(target), count)
 
@@ -94,5 +102,9 @@ def redis_big_keys(top: int = 20, target: Optional[str] = None) -> dict:
     Args:
         top: How many key rows to return, largest first (default 20).
         target: redis target name from config; omit for the default.
+
+    Returns an envelope: {"topKeys": [...], "returned": N, "limit": L,
+    "truncated": bool}. When "truncated" is true there is more than was
+    returned — do not treat this as the complete set.
     """
     return ops.big_key_sample(_get_connection(target), top)

@@ -75,7 +75,7 @@ def tool_errors(shape: str = "dict") -> Callable:
 mcp = FastMCP(
     "queue-aiops",
     instructions=(
-        "Queue/cache broker operations (preview) over redis and rabbitmq: for a "
+        "Queue/cache broker operations over redis and rabbitmq: for a "
         "redis target — server/memory/keyspace reads, clients, slowlog, config, "
         "and a SCAN-budgeted big-key sample (never KEYS *); for a rabbitmq "
         "target — management-API overview, queues, connections, channels, "

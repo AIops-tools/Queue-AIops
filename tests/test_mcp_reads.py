@@ -76,7 +76,7 @@ def test_redis_read_wrappers_hit_expected_commands(wire_redis):
     assert t.redis_server_info()["version"] == "7.2.5"
     assert t.redis_memory_stats()["usedPctOfMax"] == 92.0
     assert t.redis_clients()["total"] == 1
-    assert t.redis_slowlog()["total"] == 2
+    assert t.redis_slowlog()["returned"] == 2
     assert t.redis_big_keys()["scannedKeys"] == 1
     cmds = {c[0] for c in wire_redis._client.calls}
     assert {"info", "client_list", "slowlog_get", "scan", "memory_usage"} <= cmds

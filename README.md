@@ -1,6 +1,6 @@
 <!-- mcp-name: io.github.AIops-tools/queue-aiops -->
 
-# Queue AIops (preview)
+# Queue AIops
 
 **Governed AI-ops for redis + rabbitmq.** queue-aiops is for the team running
 their own cache and message broker — a redis that "suddenly eats memory", a
@@ -16,9 +16,10 @@ by the built-in governance harness.
 > with, endorsed by, or sponsored by the Redis or RabbitMQ projects or their
 > respective owners.** Redis and RabbitMQ are trademarks of their respective owners.
 >
-> **Preview / mock-only**: not yet validated against production brokers. Both
-> redis and rabbitmq are free/self-hostable (one lab container or package install each), so a lab
-> check is easy — `queue-aiops doctor` is the fastest live probe.
+> **Verification**: behaviour is covered by a mock-based test suite; not yet validated
+> against live brokers. Both redis and rabbitmq are free/self-hostable (one lab container
+> or package install each), so a lab check is easy — `queue-aiops doctor` is the fastest
+> live probe, and [docs/VERIFICATION.md](docs/VERIFICATION.md) is the checklist.
 
 ## Quick start
 
@@ -41,6 +42,46 @@ queue-aiops redis bigkeys      # SCAN-budgeted big-key sample (never KEYS *)
 queue-aiops rabbitmq queues    # deepest backlog first
 ```
 
+## Security: read-only mode
+
+This tool is meant to be handed to an AI agent, so its safety story is enforced
+by the server rather than requested in a prompt:
+
+```bash
+export QUEUE_READ_ONLY=1
+```
+
+With that set, the **8 write tools are never registered**. An MCP client
+lists **20 tools instead of 28** — the writes are not hidden, not
+gated behind a flag, and not merely refused when called. They are absent from
+the session. A model cannot invoke a tool it was never offered, and cannot be
+argued into one.
+
+That distinction is the whole point. A tool that exists but refuses still invites
+retry loops and "I'll describe the call instead" behaviour from smaller models,
+and it leaves a reviewer trusting a promise. An absent tool is a fact you can
+check: connect, list the tools, and see that the writes are not there.
+
+Enforcement is two layers deep, so the switch cannot be sidestepped by changing
+entry point:
+
+| Layer | What it does | Covers |
+|---|---|---|
+| `@governed_tool` harness | refuses every non-read operation outright | MCP, CLI, and in-process callers |
+| MCP registration | write tools are removed from `list_tools()` | anything speaking MCP |
+
+Read operations are unaffected, and every call is still audited to
+`~/.queue-aiops/audit.db`.
+
+> The read/write split is derived from each tool's declared `risk_level`, and a
+> test asserts that this never disagrees with the `[READ]`/`[WRITE]` tag in the
+> tool's own documentation — so a write can't quietly present itself as a read.
+
+Running a smaller / local model? See
+[agent-guardrails.md](skills/queue-aiops/references/agent-guardrails.md) — it lists
+the guardrails this tool now enforces for you (so you don't spend prompt budget
+restating them) and gives a ready-made system prompt for what's left.
+
 ## Support scope
 
 | Platform | Protocol | Coverage |
@@ -48,7 +89,7 @@ queue-aiops rabbitmq queues    # deepest backlog first
 | **redis** (5.x–7.x wire protocol via `redis` Python client) | RESP, password optional, TLS optional | INFO (server/memory/clients/stats/persistence/keyspace), SLOWLOG, CLIENT LIST/KILL, CONFIG GET/SET, MEMORY STATS/USAGE, SCAN-budgeted big-key sampling, DBSIZE, PING |
 | **rabbitmq** (management plugin HTTP API) | HTTP(S), Basic auth | /api/overview, /api/queues (+ per-vhost, detail, purge, declare, delete), /api/connections, /api/channels, /api/consumers, /api/policies (get/set/delete), /api/nodes |
 
-**26 MCP tools** — 19 reads (incl. 4 flagship RCAs) + 7 governed writes.
+**28 MCP tools** — 20 reads (incl. 4 flagship RCAs) + 8 governed writes.
 
 | Group | Tools | R/W |
 |-------|-------|:---:|
@@ -58,6 +99,7 @@ queue-aiops rabbitmq queues    # deepest backlog first
 | Flagship RCAs | redis_memory_pressure_rca, redis_latency_rca, rabbitmq_queue_backlog_rca, connection_churn_analysis | read |
 | Writes (medium) | redis_config_set, redis_kill_client, declare_queue, set_policy, delete_policy | write |
 | Writes (**high**) | purge_queue, delete_queue | write |
+| Undo | undo_list, undo_apply | read / write |
 
 The four RCAs are transparent heuristics that report their numbers — thresholds
 are named constants, every finding carries its evidence, never a black-box
@@ -133,12 +175,17 @@ queue-aiops analyze memory|latency|backlog|churn
 
 ## Verification status
 
-Preview / mock-only: the full test suite runs against mocked clients (no live
-broker needed), and the REST paths / INFO fields are modelled from the public
-docs of both platforms. Not yet validated against live production brokers —
-both are trivially self-hostable, so `queue-aiops doctor` against a
-local lab redis instance / rabbitmq broker (management plugin enabled) is
-the quickest live check.
+**Mock-validated; not yet run against live brokers.** The full test suite runs against
+mocked clients (no live broker needed): every module imports, every MCP tool carries the
+governance marker, the four flagship RCAs are unit-tested against synthetic telemetry,
+and reversible writes are asserted to record the correct inverse undo descriptor. The
+REST paths and `INFO` field names are modelled from the public docs of both platforms
+and have not been exercised against a real broker.
+
+Both platforms are trivially self-hostable, so `queue-aiops doctor` against a local lab
+redis instance / rabbitmq broker (management plugin enabled) is the quickest live check.
+[docs/VERIFICATION.md](docs/VERIFICATION.md) is the full checklist a live run must
+satisfy.
 
 ## Contributing
 
