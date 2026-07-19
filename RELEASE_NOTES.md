@@ -1,26 +1,29 @@
-# Release notes — queue-aiops 0.2.1
+# Release notes — queue-aiops 0.2.2
 
-Previous release: 0.2.0.
+Previous release: 0.2.1.
 
-## Fixed: integer quantities were rendered as floats
+## Fixed: the remaining float-typed integer quantities
 
-Key counts, client counts and byte totals were routed through the float coercion
-helper, so a live server reported `202.0` keys and `1.0` connected clients. The
-values were arithmetically right but semantically wrong — a count cannot be
-fractional, and a reader should not have to wonder whether `.0` means the number was
-rounded.
+0.2.1 converted the obvious counts, but a regex-driven sweep missed 19 more —
+`consumers`, per-node `fdUsed`/`socketsUsed`, `queues`/`connections`/`channels`
+object totals, connection `connectedAt`, slowlog `id`/`startTime`/`durationUs`, and
+Redis `totalCommands`. A live RabbitMQ broker reported `"consumers": 0.0`.
 
-These now use a new `as_int()` helper and come back as integers. Genuinely fractional
-values (`hitRatePct`, `usedPctOfMax`, `opsPerSec`, `expiresPct`) are unchanged. Note
-that equality assertions cannot catch this class of bug (`202 == 202.0`), so the
-regression test asserts the *type*.
+These are integers now. Genuinely fractional values — `consumerUtilisation`,
+`opsPerSec`, `fragmentationRatio`, and the `*Rate` fields — are unchanged.
 
-If you parse these fields, the JSON shape changes from `202.0` to `202`.
+## Live-verified: RabbitMQ
 
-## Live-verified
+The entire RabbitMQ command group had never been run against a live broker. It has
+now been exercised against **RabbitMQ 3.13.7**: `doctor`, every read
+(`overview`, `queues`, `queue`, `connections`, `channels`, `policies`, `nodes`) with
+queue depth cross-checked against `rabbitmqadmin` ground truth, the backlog and
+churn analyses, and the full governance loop — `set_policy` really created a policy
+on the broker, `priorState` recorded that it had not existed, and `undo_apply`
+deleted it, with all three calls audited.
 
-This release was exercised end-to-end against a real **Redis 7.4.9** server: every
-Redis read cross-checked against `redis-cli` ground truth, all four analyses, and the
-full governance loop (real `redis_config_set` → audit row → `undo_apply` restoring the
-prior value). See [docs/VERIFICATION.md](docs/VERIFICATION.md) — **RabbitMQ remains
-mock-only** and is now the largest gap in this repo.
+The platform guard was confirmed too: a Redis-only analysis against a RabbitMQ
+target fails with a teaching error naming the mismatch.
+
+See [docs/VERIFICATION.md](docs/VERIFICATION.md). Redis cluster/sentinel topologies
+and AUTH/TLS connections remain unverified.

@@ -175,15 +175,16 @@ queue-aiops analyze memory|latency|backlog|churn
 
 ## Verification status
 
-**Live-verified against Redis 7.4.9 (2026-07-19); RabbitMQ still mock-only.**
+**Live-verified against Redis 7.4.9 and RabbitMQ 3.13.7 (2026-07-19/20).**
 Connectivity, every Redis read (cross-checked against `redis-cli` ground truth), all
 four analyses, and the full governance loop (real `redis_config_set` → audit row →
 undo restoring the prior value) were exercised against a real server. That run found
 and fixed a real defect: integer quantities — key counts, client counts, byte totals —
 were rendered as floats (`202.0` keys), which equality assertions cannot catch.
 
-The **entire RabbitMQ command group** remains unverified against a live broker, as do
-Redis cluster/sentinel topologies and AUTH/TLS connections.
+The RabbitMQ group is now verified end-to-end too — reads cross-checked against
+`rabbitmqadmin`, and `set_policy` → `undo_apply` closing on the live broker. **Redis
+cluster/sentinel topologies and AUTH/TLS connections** remain unverified.
 
 [docs/VERIFICATION.md](docs/VERIFICATION.md) records exactly what was checked and what
 is still open. `queue-aiops doctor` is the fastest live check.

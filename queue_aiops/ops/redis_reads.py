@@ -40,7 +40,7 @@ def server_info(conn: Any) -> dict:
             "connectedClients": as_int(info.get("connected_clients")),
             "blockedClients": as_int(info.get("blocked_clients")),
             "opsPerSec": num(info.get("instantaneous_ops_per_sec")),
-            "totalCommands": num(info.get("total_commands_processed")),
+            "totalCommands": as_int(info.get("total_commands_processed")),
             "keyspaceHits": as_int(info.get("keyspace_hits")),
             "keyspaceMisses": as_int(info.get("keyspace_misses")),
             "hitRatePct": pct(
@@ -143,9 +143,9 @@ def slowlog(conn: Any, count: int = MAX_SLOWLOG_ROWS) -> dict:
         entries = conn.redis_slowlog(want + 1)
         rows = [
             {
-                "id": num(e.get("id")),
-                "startTime": num(e.get("start_time")),
-                "durationUs": num(e.get("duration")),
+                "id": as_int(e.get("id")),
+                "startTime": as_int(e.get("start_time")),
+                "durationUs": as_int(e.get("duration")),
                 "command": _command_text(e.get("command")),
                 "clientAddr": opt(e.get("client_address"), 64),
                 "clientName": opt(e.get("client_name"), 64),

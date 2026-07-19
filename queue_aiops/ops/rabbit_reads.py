@@ -31,10 +31,10 @@ def broker_overview(conn: Any) -> dict:
             "messagesReady": as_int(totals.get("messages_ready")),
             "messagesUnacked": as_int(totals.get("messages_unacknowledged")),
             "messagesTotal": as_int(totals.get("messages")),
-            "queues": num(objects.get("queues")),
-            "connections": num(objects.get("connections")),
-            "channels": num(objects.get("channels")),
-            "consumers": num(objects.get("consumers")),
+            "queues": as_int(objects.get("queues")),
+            "connections": as_int(objects.get("connections")),
+            "channels": as_int(objects.get("channels")),
+            "consumers": as_int(objects.get("consumers")),
             "publishRate": rate(stats.get("publish_details")),
             "deliverRate": rate(stats.get("deliver_get_details")),
             "ackRate": rate(stats.get("ack_details")),
@@ -59,7 +59,7 @@ def _queue_row(q: dict) -> dict:
         "messages": as_int(q.get("messages")),
         "messagesReady": as_int(q.get("messages_ready")),
         "messagesUnacked": as_int(q.get("messages_unacknowledged")),
-        "consumers": num(q.get("consumers")),
+        "consumers": as_int(q.get("consumers")),
         "memoryBytes": as_int(q.get("memory")),
         "publishRate": rate(stats.get("publish_details")),
         "deliverRate": rate(stats.get("deliver_get_details")),
@@ -123,8 +123,8 @@ def list_connections(conn: Any) -> dict:
                 "peerHost": opt(pick(c, "peer_host", default="(unknown)"), 64),
                 "user": opt(c.get("user"), 64),
                 "state": opt(c.get("state"), 32),
-                "channels": num(c.get("channels")),
-                "connectedAt": num(c.get("connected_at")),
+                "channels": as_int(c.get("channels")),
+                "connectedAt": as_int(c.get("connected_at")),
                 "clientProduct": s(as_obj(c.get("client_properties")).get("product"), 64),
             }
             for c in conn.platform.rows(conn.get(conn.platform.path("connections")))
@@ -158,9 +158,9 @@ def list_channels(conn: Any) -> dict:
                 "connection": s(as_obj(c.get("connection_details")).get("name"), 128),
                 "user": opt(c.get("user"), 64),
                 "state": opt(c.get("state"), 32),
-                "unacked": num(c.get("messages_unacknowledged")),
-                "prefetch": num(c.get("prefetch_count")),
-                "consumers": num(c.get("consumer_count")),
+                "unacked": as_int(c.get("messages_unacknowledged")),
+                "prefetch": as_int(c.get("prefetch_count")),
+                "consumers": as_int(c.get("consumer_count")),
             }
             for c in conn.platform.rows(conn.get(conn.platform.path("channels")))
         ]
@@ -190,7 +190,7 @@ def list_policies(conn: Any, vhost: str | None = None) -> dict:
                 "vhost": opt(p.get("vhost"), 64),
                 "pattern": opt(p.get("pattern"), 128),
                 "applyTo": opt(pick(p, "apply-to", "apply_to", default="all"), 32),
-                "priority": num(p.get("priority")),
+                "priority": as_int(p.get("priority")),
                 "definition": as_obj(p.get("definition")),
             }
             for p in conn.platform.rows(conn.get(path))
@@ -223,10 +223,10 @@ def node_health(conn: Any) -> dict:
                     "diskFreeBytes": as_int(n.get("disk_free")),
                     "diskFreeLimitBytes": as_int(n.get("disk_free_limit")),
                     "diskAlarm": bool(n.get("disk_free_alarm")),
-                    "fdUsed": num(n.get("fd_used")),
-                    "fdTotal": num(n.get("fd_total")),
-                    "socketsUsed": num(n.get("sockets_used")),
-                    "socketsTotal": num(n.get("sockets_total")),
+                    "fdUsed": as_int(n.get("fd_used")),
+                    "fdTotal": as_int(n.get("fd_total")),
+                    "socketsUsed": as_int(n.get("sockets_used")),
+                    "socketsTotal": as_int(n.get("sockets_total")),
                 }
             )
         rows.sort(key=lambda r: r["memUsedBytes"], reverse=True)
