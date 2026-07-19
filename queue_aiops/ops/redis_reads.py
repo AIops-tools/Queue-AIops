@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from queue_aiops.ops._util import as_obj, num, opt, pct, s
+from queue_aiops.ops._util import as_int, as_obj, num, opt, pct, s
 
 # Hard bounds for the SCAN-based big-key sample (never KEYS *).
 SCAN_BUDGET_KEYS = 10_000  # max keys walked per call
@@ -35,14 +35,14 @@ def server_info(conn: Any) -> dict:
             "platform": conn.target.platform,
             "version": opt(info.get("redis_version")),
             "mode": opt(info.get("redis_mode")),
-            "uptimeSeconds": num(info.get("uptime_in_seconds")),
+            "uptimeSeconds": as_int(info.get("uptime_in_seconds")),
             "role": opt(info.get("role")),
-            "connectedClients": num(info.get("connected_clients")),
-            "blockedClients": num(info.get("blocked_clients")),
+            "connectedClients": as_int(info.get("connected_clients")),
+            "blockedClients": as_int(info.get("blocked_clients")),
             "opsPerSec": num(info.get("instantaneous_ops_per_sec")),
             "totalCommands": num(info.get("total_commands_processed")),
-            "keyspaceHits": num(info.get("keyspace_hits")),
-            "keyspaceMisses": num(info.get("keyspace_misses")),
+            "keyspaceHits": as_int(info.get("keyspace_hits")),
+            "keyspaceMisses": as_int(info.get("keyspace_misses")),
             "hitRatePct": pct(
                 num(info.get("keyspace_hits")),
                 num(info.get("keyspace_hits")) + num(info.get("keyspace_misses")),
@@ -56,8 +56,8 @@ def memory_stats(conn: Any) -> dict:
     """[READ] Memory posture: used vs maxmemory, policy, fragmentation, peaks."""
     try:
         info = as_obj(conn.redis_info("memory"))
-        used = num(info.get("used_memory"))
-        maxmem = num(info.get("maxmemory"))
+        used = as_int(info.get("used_memory"))
+        maxmem = as_int(info.get("maxmemory"))
         stats = as_obj(conn.redis_memory_stats())
         return {
             "usedBytes": used,
@@ -66,11 +66,11 @@ def memory_stats(conn: Any) -> dict:
             "usedPctOfMax": pct(used, maxmem),
             "maxmemoryPolicy": opt(info.get("maxmemory_policy")),
             "fragmentationRatio": num(info.get("mem_fragmentation_ratio")),
-            "rssBytes": num(info.get("used_memory_rss")),
-            "peakBytes": num(info.get("used_memory_peak")),
-            "keysCount": num(stats.get("keys.count")),
-            "overheadBytes": num(stats.get("overhead.total")),
-            "datasetBytes": num(stats.get("dataset.bytes")),
+            "rssBytes": as_int(info.get("used_memory_rss")),
+            "peakBytes": as_int(info.get("used_memory_peak")),
+            "keysCount": as_int(stats.get("keys.count")),
+            "overheadBytes": as_int(stats.get("overhead.total")),
+            "datasetBytes": as_int(stats.get("dataset.bytes")),
         }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
@@ -85,8 +85,8 @@ def list_clients(conn: Any) -> dict:
                 "id": opt(c.get("id"), 32),
                 "addr": opt(c.get("addr"), 64),
                 "name": opt(c.get("name"), 64),
-                "ageSeconds": num(c.get("age")),
-                "idleSeconds": num(c.get("idle")),
+                "ageSeconds": as_int(c.get("age")),
+                "idleSeconds": as_int(c.get("idle")),
                 "lastCommand": opt(c.get("cmd"), 64),
                 "db": opt(c.get("db"), 8),
                 "flags": opt(c.get("flags"), 16),
@@ -183,15 +183,15 @@ def keyspace(conn: Any) -> dict:
         dbs = []
         for name, cell in info.items():
             cell = as_obj(cell) if isinstance(cell, dict) else _parse_keyspace_cell(cell)
-            keys = num(cell.get("keys"))
-            expires = num(cell.get("expires"))
+            keys = as_int(cell.get("keys"))
+            expires = as_int(cell.get("expires"))
             dbs.append(
                 {
                     "db": s(name, 16),
                     "keys": keys,
                     "expires": expires,
                     "expiresPct": pct(expires, keys),
-                    "avgTtlMs": num(cell.get("avg_ttl")),
+                    "avgTtlMs": as_int(cell.get("avg_ttl")),
                 }
             )
         return {"databases": dbs, "totalKeys": sum(d["keys"] for d in dbs)}
@@ -235,7 +235,7 @@ def big_key_sample(conn: Any, top: int = TOP_KEYS) -> dict:
         for key in sampled:
             usage = conn.redis_memory_usage(key)
             if usage is not None:
-                sized.append({"key": s(key, 128), "bytes": float(usage)})
+                sized.append({"key": s(key, 128), "bytes": int(usage)})
         sized.sort(key=lambda e: e["bytes"], reverse=True)
 
         return {

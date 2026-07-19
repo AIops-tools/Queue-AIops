@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from queue_aiops.ops._util import as_obj, num, opt, pick, rate, s
+from queue_aiops.ops._util import as_int, as_obj, num, opt, pick, rate, s
 
 MAX_ROWS = 200
 
@@ -28,9 +28,9 @@ def broker_overview(conn: Any) -> dict:
             "version": opt(pick(obj, "rabbitmq_version", "product_version")),
             "clusterName": opt(obj.get("cluster_name")),
             "node": opt(obj.get("node")),
-            "messagesReady": num(totals.get("messages_ready")),
-            "messagesUnacked": num(totals.get("messages_unacknowledged")),
-            "messagesTotal": num(totals.get("messages")),
+            "messagesReady": as_int(totals.get("messages_ready")),
+            "messagesUnacked": as_int(totals.get("messages_unacknowledged")),
+            "messagesTotal": as_int(totals.get("messages")),
             "queues": num(objects.get("queues")),
             "connections": num(objects.get("connections")),
             "channels": num(objects.get("channels")),
@@ -56,11 +56,11 @@ def _queue_row(q: dict) -> dict:
         "vhost": opt(q.get("vhost"), 64),
         "state": opt(q.get("state"), 32),
         "durable": bool(q.get("durable")),
-        "messages": num(q.get("messages")),
-        "messagesReady": num(q.get("messages_ready")),
-        "messagesUnacked": num(q.get("messages_unacknowledged")),
+        "messages": as_int(q.get("messages")),
+        "messagesReady": as_int(q.get("messages_ready")),
+        "messagesUnacked": as_int(q.get("messages_unacknowledged")),
         "consumers": num(q.get("consumers")),
-        "memoryBytes": num(q.get("memory")),
+        "memoryBytes": as_int(q.get("memory")),
         "publishRate": rate(stats.get("publish_details")),
         "deliverRate": rate(stats.get("deliver_get_details")),
         "ackRate": rate(stats.get("ack_details")),
@@ -220,8 +220,8 @@ def node_health(conn: Any) -> dict:
                     "memUsedBytes": mem_used,
                     "memLimitBytes": mem_limit,
                     "memAlarm": bool(n.get("mem_alarm")),
-                    "diskFreeBytes": num(n.get("disk_free")),
-                    "diskFreeLimitBytes": num(n.get("disk_free_limit")),
+                    "diskFreeBytes": as_int(n.get("disk_free")),
+                    "diskFreeLimitBytes": as_int(n.get("disk_free_limit")),
                     "diskAlarm": bool(n.get("disk_free_alarm")),
                     "fdUsed": num(n.get("fd_used")),
                     "fdTotal": num(n.get("fd_total")),

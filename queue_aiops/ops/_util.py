@@ -50,11 +50,34 @@ def pick(row: dict, *keys: str, default: Any = None) -> Any:
 
 
 def num(value: Any) -> float:
-    """Coerce a numeric cell to float; 0.0 when absent/non-numeric."""
+    """Coerce a numeric cell to float; 0.0 when absent/non-numeric.
+
+    Use this only for genuinely fractional values (rates, ratios, percentages).
+    For integer quantities — key counts, byte counts, client counts, whole
+    seconds — use :func:`as_int`, which keeps them integers.
+    """
     try:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def as_int(value: Any) -> int:
+    """Coerce an integer quantity (counts, bytes, whole seconds) to ``int``.
+
+    Redis ``INFO`` and the RabbitMQ management API hand these back as strings;
+    routing them through :func:`num` rendered them as ``202.0`` keys or
+    ``1.0`` connected clients — arithmetically right but semantically wrong,
+    since a count cannot be fractional. A reader (human or model) should not
+    have to wonder whether a ``.0`` means the value was rounded.
+
+    Non-numeric/absent yields ``0`` to match :func:`num`'s contract for these
+    always-present INFO fields.
+    """
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return 0
 
 
 def rate(row: Any, default: float = 0.0) -> float:

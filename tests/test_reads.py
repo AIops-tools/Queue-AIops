@@ -98,6 +98,36 @@ def test_keyspace_parses_raw_cells():
 
 
 @pytest.mark.unit
+def test_integer_quantities_are_ints_not_floats():
+    """Counts and byte totals must be int; only ratios stay float.
+
+    Regression from live verification against Redis 7.4: INFO values routed
+    through ``num()`` rendered as ``202.0`` keys and ``1.0`` clients. Equality
+    assertions cannot catch this (``202 == 202.0``), so assert the *type*.
+    """
+    conn = redis_conn(
+        info={
+            "keyspace": {"db0": "keys=100,expires=40,avg_ttl=5000"},
+            "memory": {"used_memory": "1374096", "maxmemory": "0"},
+            "clients": {"connected_clients": "1", "blocked_clients": "0"},
+            "server": {"uptime_in_seconds": "1790"},
+            "stats": {"keyspace_hits": "7", "keyspace_misses": "0"},
+        }
+    )
+    ks = redis_reads.keyspace(conn)
+    assert isinstance(ks["totalKeys"], int)
+    assert isinstance(ks["databases"][0]["keys"], int)
+    assert isinstance(ks["databases"][0]["expires"], int)
+    # …but a genuine ratio must stay float.
+    assert isinstance(ks["databases"][0]["expiresPct"], float)
+
+    mem = redis_reads.memory_stats(conn)
+    assert isinstance(mem["usedBytes"], int)
+    assert isinstance(mem["maxmemoryBytes"], int)
+    assert isinstance(mem["usedPctOfMax"], float)
+
+
+@pytest.mark.unit
 def test_big_key_sample_scans_and_sizes_topmost():
     conn = redis_conn(
         scan_pages=[(1, ["k1", "k2"]), (0, ["k3"])],
@@ -107,7 +137,7 @@ def test_big_key_sample_scans_and_sizes_topmost():
     out = redis_reads.big_key_sample(conn)
     assert out["scannedKeys"] == 3
     assert out["coveragePct"] == 100.0
-    assert out["topKeys"][0] == {"key": "k2", "bytes": 50_000_000.0}
+    assert out["topKeys"][0] == {"key": "k2", "bytes": 50_000_000}
 
 
 @pytest.mark.unit

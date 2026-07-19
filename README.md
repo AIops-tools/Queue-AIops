@@ -175,17 +175,19 @@ queue-aiops analyze memory|latency|backlog|churn
 
 ## Verification status
 
-**Mock-validated; not yet run against live brokers.** The full test suite runs against
-mocked clients (no live broker needed): every module imports, every MCP tool carries the
-governance marker, the four flagship RCAs are unit-tested against synthetic telemetry,
-and reversible writes are asserted to record the correct inverse undo descriptor. The
-REST paths and `INFO` field names are modelled from the public docs of both platforms
-and have not been exercised against a real broker.
+**Live-verified against Redis 7.4.9 (2026-07-19); RabbitMQ still mock-only.**
+Connectivity, every Redis read (cross-checked against `redis-cli` ground truth), all
+four analyses, and the full governance loop (real `redis_config_set` → audit row →
+undo restoring the prior value) were exercised against a real server. That run found
+and fixed a real defect: integer quantities — key counts, client counts, byte totals —
+were rendered as floats (`202.0` keys), which equality assertions cannot catch.
 
-Both platforms are trivially self-hostable, so `queue-aiops doctor` against a local lab
-redis instance / rabbitmq broker (management plugin enabled) is the quickest live check.
-[docs/VERIFICATION.md](docs/VERIFICATION.md) is the full checklist a live run must
-satisfy.
+The **entire RabbitMQ command group** remains unverified against a live broker, as do
+Redis cluster/sentinel topologies and AUTH/TLS connections.
+
+[docs/VERIFICATION.md](docs/VERIFICATION.md) records exactly what was checked and what
+is still open. `queue-aiops doctor` is the fastest live check.
+
 
 ## Contributing
 
