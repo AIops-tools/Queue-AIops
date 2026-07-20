@@ -67,7 +67,16 @@ def _audit_tools(db_path) -> list[str]:
 
 
 @pytest.mark.unit
-def test_cli_config_set_dry_run_makes_no_call_and_no_audit(gov_home, cache_conn):
+def test_cli_config_set_dry_run_mutates_nothing_but_is_audited(gov_home, cache_conn):
+    """The invariant is: a dry_run MAY read, it must never WRITE.
+
+    config_set is self-lockout guarded, so its preview routes through the
+    governed twin to find out whether the real call would be refused. That also
+    lands an audit row — not new behaviour but the removal of an inconsistency:
+    MCP dry-runs have always audited, the CLI was the outlier. This particular
+    guard is a static denylist, so the preview still touches the broker not at
+    all.
+    """
     from queue_aiops.cli import app
 
     result = CliRunner().invoke(
@@ -76,7 +85,7 @@ def test_cli_config_set_dry_run_makes_no_call_and_no_audit(gov_home, cache_conn)
     assert result.exit_code == 0
     assert "DRY-RUN" in result.output
     assert cache_conn._client.calls == []
-    assert not (gov_home / "audit.db").exists()
+    assert _audit_tools(gov_home / "audit.db") == ["redis_config_set"]
 
 
 @pytest.mark.unit

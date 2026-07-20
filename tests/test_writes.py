@@ -305,17 +305,24 @@ def test_write_risk_tiers():
         assert fn._risk_level == "medium"
 
 
+# Redis client methods that CHANGE something. A dry_run may read (the self-kill
+# guard asks CLIENT ID, which is the whole point of it running before the
+# preview returns); it must never appear in this list.
+_REDIS_MUTATORS = {"config_set", "client_kill_filter"}
+
+
 @pytest.mark.unit
 def test_dry_run_previews_do_not_mutate(monkeypatch):
+    """The invariant is: a dry_run MAY read, it must never WRITE."""
     from mcp_server.tools import writes as t
 
-    rconn = redis_conn(config={"maxmemory": "0"})
+    rconn = redis_conn(config={"maxmemory": "0"}, client_id=11)
     qconn = rabbit_conn({("GET", "/api/queues/%2F/orders"): _Q})
 
     monkeypatch.setattr(t, "_get_connection", lambda target=None: rconn)
     assert t.redis_config_set(parameter="maxmemory", value="1gb", dry_run=True)["dryRun"]
     assert t.redis_kill_client(client_id=7, dry_run=True)["dryRun"]
-    assert rconn._client.calls == []
+    assert [c for c in rconn._client.calls if c[0] in _REDIS_MUTATORS] == []
 
     monkeypatch.setattr(t, "_get_connection", lambda target=None: qconn)
     assert t.purge_queue(vhost="/", name="orders", dry_run=True)["dryRun"]

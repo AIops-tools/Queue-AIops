@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "queue-aiops"
-version = "0.2.2"
+version = "0.3.0"
 description = "Governed AI-ops for redis + rabbitmq: memory-pressure/latency/queue-backlog/connection-churn RCAs, slowlog and SCAN-budgeted big-key sampling, queues/policies/nodes, and governed writes (config set, client kill, purge/delete queue, policies) with a built-in governance harness (audit, budget, undo, risk tiers)"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-authors = [{ name = "wei", email = "zhouwei008@gmail.com" }]
+authors = [{ name = "Wei Zhou", email = "zhouwei008@gmail.com" }]
 dependencies = [
     "redis>=5.0,<7.0",
     "httpx>=0.27,<1.0",

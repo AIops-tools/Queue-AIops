@@ -29,6 +29,7 @@ class FakeRedis:
         scan_pages: list | None = None,
         dbsize: int = 0,
         kill_result: int = 1,
+        client_id: int | None = None,
     ) -> None:
         self._info = info or {}
         self._slowlog = slowlog or []
@@ -39,6 +40,7 @@ class FakeRedis:
         self._scan_pages = list(scan_pages or [(0, [])])
         self._dbsize = dbsize
         self._kill_result = kill_result
+        self._client_id = client_id
         self.calls: list[tuple] = []
 
     def ping(self):
@@ -58,6 +60,12 @@ class FakeRedis:
     def client_list(self):
         self.calls.append(("client_list",))
         return self._clients
+
+    def client_id(self):
+        """CLIENT ID — this connection's own id. None models an undeterminable
+        identity, which the self-kill guard must treat as UNKNOWN (fail open)."""
+        self.calls.append(("client_id",))
+        return self._client_id
 
     def client_kill_filter(self, _id: str | None = None, addr: str | None = None):
         self.calls.append(("client_kill_filter", _id, addr))

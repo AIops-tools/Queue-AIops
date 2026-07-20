@@ -141,6 +141,13 @@ def redis_config_set(
     restores its prior value. Runtime-only — not persisted to the config file.
     Pass dry_run=True to preview.
 
+    Refuses the parameters that would lock this tool out of the instance
+    (requirepass, masterauth, bind, port, protected-mode, maxclients,
+    unixsocket, aclfile, tls-*) — the undo could never be replayed over a
+    connection those settings break. Change those in redis.conf and restart.
+    The refusal applies under dry_run too: a preview whose real call would be
+    refused must report that, not a green 'wouldSet'.
+
     Args:
         parameter: Config parameter name (e.g. maxmemory-policy), from redis_config_get.
         value: New value.
@@ -148,6 +155,9 @@ def redis_config_set(
         target: redis target name from config; omit for the default.
     """
     conn = _get_connection(target)
+    # Ahead of the dry_run return: a preview whose real call would be refused
+    # must say so, or the caller reads the refusal as transient and retries.
+    ops.guard_config_set(parameter)
     if dry_run:
         return {"dryRun": True, "wouldSet": {"parameter": parameter, "value": value}}
     return ops.config_set(conn, parameter, value)
@@ -169,6 +179,10 @@ def redis_kill_client(
     is recorded; most clients transparently reconnect. Pass dry_run=True to
     preview.
 
+    Refuses this tool's own connection, by id or by addr — including under
+    dry_run, which must report a refusal rather than preview a call that will be
+    refused.
+
     Args:
         client_id: Client id from redis_clients (preferred).
         addr: Or the client's 'ip:port' address.
@@ -176,6 +190,9 @@ def redis_kill_client(
         target: redis target name from config; omit for the default.
     """
     conn = _get_connection(target)
+    # Ahead of the dry_run return: a preview whose real call would be refused
+    # must say so, or the caller reads the refusal as transient and retries.
+    ops.guard_kill_client(conn, client_id=client_id, addr=addr)
     if dry_run:
         return {"dryRun": True, "wouldKill": {"clientId": client_id, "addr": addr}}
     return ops.kill_client(conn, client_id=client_id, addr=addr)

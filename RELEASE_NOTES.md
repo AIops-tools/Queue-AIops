@@ -1,29 +1,50 @@
-# Release notes — queue-aiops 0.2.2
+# Release notes — queue-aiops 0.3.0
 
-Previous release: 0.2.1.
+Previous release: 0.2.2.
 
-## Fixed: the remaining float-typed integer quantities
+## In this tool
 
-0.2.1 converted the obvious counts, but a regex-driven sweep missed 19 more —
-`consumers`, per-node `fdUsed`/`socketsUsed`, `queues`/`connections`/`channels`
-object totals, connection `connectedAt`, slowlog `id`/`startTime`/`durationUs`, and
-Redis `totalCommands`. A live RabbitMQ broker reported `"consumers": 0.0`.
+- **`redis_config_set` refuses the parameters that lock this tool out of the server**: `requirepass`, `masterauth`, `bind`, `protected-mode`, `maxclients`, `port`, `unixsocket`, `aclfile`, and anything `tls-*`. Setting `requirepass` invalidated the stored credential, and the recorded undo then needed a connection that could no longer authenticate. The refusal happens **before** the prior value is read, which also stops the live password being copied into `audit.db` and the undo store.
+- `list_clients` no longer returns this tool's own connection, and `redis_kill_client` refuses it — by id or by address. The two sibling tools already filtered themselves out on the read path; Redis did not.
 
-These are integers now. Genuinely fractional values — `consumerUtilisation`,
-`opsPerSec`, `fragmentationRatio`, and the `*Rate` fields — are unchanged.
+## Every tool in the line: previews and undetermined outcomes
 
-## Live-verified: RabbitMQ
+This release fixes three harness defects that were silently degrading the audit
+trail and the undo store.
 
-The entire RabbitMQ command group had never been run against a live broker. It has
-now been exercised against **RabbitMQ 3.13.7**: `doctor`, every read
-(`overview`, `queues`, `queue`, `connections`, `channels`, `policies`, `nodes`) with
-queue depth cross-checked against `rabbitmqadmin` ground truth, the backlog and
-churn analyses, and the full governance loop — `set_policy` really created a policy
-on the broker, `priorState` recorded that it had not existed, and `undo_apply`
-deleted it, with all three calls audited.
+**A write that loses its response is no longer recorded as a failure.** The
+harness assumed a sanitized error meant nothing had happened. That assumption is
+false in exactly the case that matters most: when a write severs its own
+connection, the request has already landed, the response cannot come back, and
+the operation was recorded as `status=error` with **no undo token created at
+all**. Transport-level failures are now audited as `status=unknown`, the result
+says plainly that the operation may have taken effect and should be verified
+before retrying, and a write that stashed its before-state has its inverse
+recorded anyway — flagged `effectVerified: false`, which `undo_list` and
+`undo_apply` both surface. Existing `undo.db` files are migrated in place; their
+rows read as verified, which is accurate, since the old code only ever recorded
+on the confirmed path.
 
-The platform guard was confirmed too: a Redis-only analysis against a RabbitMQ
-target fails with a teaching error naming the mismatch.
+**A dry-run no longer writes an undo token.** Previews were recording inverses
+built from a before-state they never had: the undo callback's permissive default
+filled the gap with a guess, producing a real, applicable token for an operation
+that never happened.
 
-See [docs/VERIFICATION.md](docs/VERIFICATION.md). Redis cluster/sentinel topologies
-and AUTH/TLS connections remain unverified.
+**A dry-run no longer demands a named approver.** Requiring an approval in order
+to ask whether something needs approval inverts what a preview is for. The tier
+is still computed and still audited, so the preview can tell you an approver
+will be needed; it just no longer refuses to answer. The write itself is gated
+exactly as before.
+
+The invariant, now stated: **a dry_run may read; it must never write.** Guards
+run on the preview path, which means a preview can and does report that an
+operation would be refused.
+
+## Also line-wide
+
+- **Truncated text now ends in an ellipsis** instead of being cut silently. This
+  line already treats a silent cut as a defect for lists; it was doing exactly
+  that to strings.
+- **Error messages are capped at 800 characters, not 300.** These messages end
+  with what to do instead, so the cap was removing the most useful sentence of
+  every long refusal.

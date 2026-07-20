@@ -161,6 +161,23 @@ class QueueConnection:
         out = self._redis_call("CLIENT LIST", "client_list")
         return [c for c in out if isinstance(c, dict)] if isinstance(out, list) else []
 
+    def redis_client_id(self) -> int | None:
+        """This connection's own client id (CLIENT ID), or None if undeterminable.
+
+        Used to keep the tool's own connection out of ``list_clients`` and to
+        refuse ``kill_client`` against it — killing the connection you are
+        calling through is an operation that destroys its own reversibility, and
+        a kill has no undo to begin with.
+
+        ``None`` means UNKNOWN and callers must treat it as such: never as
+        "it is me", and never as "it is not me" in a way that hides a real row.
+        """
+        try:
+            out = self._redis_call("CLIENT ID", "client_id")
+            return int(out) if out is not None else None
+        except Exception:  # noqa: BLE001 — unknown identity, never a false "it is me"
+            return None
+
     def redis_client_kill_id(self, client_id: int) -> int:
         """CLIENT KILL ID <id>; returns the number of clients killed."""
         out = self._redis_call(

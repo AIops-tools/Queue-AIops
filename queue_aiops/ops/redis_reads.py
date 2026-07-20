@@ -77,9 +77,23 @@ def memory_stats(conn: Any) -> dict:
 
 
 def list_clients(conn: Any) -> dict:
-    """[READ] Connected clients grouped by source address, busiest first."""
+    """[READ] Connected clients grouped by source address, busiest first.
+
+    Excludes this tool's own connection (CLIENT ID), the way the sibling DBA
+    tools do on their read paths (``WHERE pid <> pg_backend_pid()`` /
+    ``WHERE id <> CONNECTION_ID()``). Listing it would hand an agent looking for
+    "the idle client to kill" its own id — and ``kill_client`` has no undo.
+
+    When CLIENT ID cannot be determined the list is returned unfiltered: an
+    unknown identity must not silently hide some other client's row. The write
+    guard in ``kill_client`` is the real protection; this is defence in depth.
+    """
     try:
-        clients = conn.redis_client_list()
+        own_id = conn.redis_client_id() if hasattr(conn, "redis_client_id") else None
+        clients = [
+            c for c in conn.redis_client_list()
+            if own_id is None or str(c.get("id")) != str(own_id)
+        ]
         rows = [
             {
                 "id": opt(c.get("id"), 32),

@@ -13,7 +13,7 @@ from queue_aiops.cli._common import (
     cli_errors,
     console,
     double_confirm,
-    dry_run_print,
+    dry_run_preview,
     get_connection,
 )
 
@@ -128,8 +128,13 @@ def redis_config_set(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="redis_config_set", api_call="CONFIG SET",
-                      parameters={"parameter": parameter, "value": value})
+        # Through the governed call: redis_config_set refuses the self-affecting
+        # parameters, so a preview must report that rather than a green banner.
+        dry_run_preview(
+            gov.redis_config_set(parameter=parameter, value=value, dry_run=True,
+                                 target=target),
+            operation="redis_config_set", api_call="CONFIG SET",
+            parameters={"parameter": parameter, "value": value})
         return
     double_confirm("set config parameter", parameter)
     console.print_json(
@@ -150,8 +155,13 @@ def redis_kill_client(
 
     who = str(client_id) if client_id else addr
     if dry_run:
-        dry_run_print(operation="redis_kill_client", api_call="CLIENT KILL",
-                      parameters={"client_id": client_id, "addr": addr})
+        # Through the governed call: redis_kill_client refuses this tool's own
+        # connection, so a preview must report that rather than a green banner.
+        dry_run_preview(
+            gov.redis_kill_client(client_id=client_id, addr=addr, dry_run=True,
+                                  target=target),
+            operation="redis_kill_client", api_call="CLIENT KILL",
+            parameters={"client_id": client_id, "addr": addr})
         return
     double_confirm("kill client", who or "(unspecified)")
     console.print_json(
