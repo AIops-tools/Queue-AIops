@@ -52,9 +52,7 @@ The wizard asks for:
    6379/15672), redis db index, TLS (verify defaults to **true**; answer No
    for self-signed lab certs), rabbitmq management user, and the secret
    (hidden prompt; empty = auth-less redis).
-3. It seeds `~/.queue-aiops/rules.yaml` with the dual-control tier
-   (high-risk writes need a named approver) — never overwriting an existing
-   operator-authored file — and offers to run `doctor`.
+3. It offers to run `doctor` to confirm connectivity right away.
 
 Config lands in `~/.queue-aiops/config.yaml`:
 
@@ -106,8 +104,9 @@ connectivity: `PING` for redis, `GET /api/overview` for rabbitmq. Exit code 0
 ```
 
 MCP clients start the server with a minimal environment — put everything it
-needs (`QUEUE_AIOPS_MASTER_PASSWORD`, a relocated `QUEUE_AIOPS_HOME`,
-`QUEUE_AUDIT_APPROVED_BY` for high-risk writes) in that `env` block.
+needs (`QUEUE_AIOPS_MASTER_PASSWORD`, a relocated `QUEUE_AIOPS_HOME`, and any
+optional `QUEUE_AUDIT_APPROVED_BY`/`QUEUE_AUDIT_RATIONALE` audit annotations) in
+that `env` block.
 
 ## Troubleshooting
 
@@ -117,5 +116,5 @@ needs (`QUEUE_AIOPS_MASTER_PASSWORD`, a relocated `QUEUE_AIOPS_HOME`,
 | Redis `AUTH` errors | The stored password is wrong — `queue-aiops secret set <target>` |
 | 401/403 from the management API | Wrong user/password, or the user lacks the `monitoring`/`management` tag or vhost access |
 | 404 on a queue/policy | Stale name, or the vhost is wrong — remember the default vhost is `/` |
-| High-risk write denied | Set `QUEUE_AUDIT_APPROVED_BY` (+ `QUEUE_AUDIT_RATIONALE`), per the seeded rules.yaml |
+| Write rejected by the broker | The connecting user lacks configure/write permission (or the Redis ACL forbids the command) — grant it, or connect a user that has it |
 | Master-password prompt in MCP | Export `QUEUE_AIOPS_MASTER_PASSWORD` in the MCP `env` block |

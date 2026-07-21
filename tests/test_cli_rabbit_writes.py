@@ -153,12 +153,52 @@ def test_cli_delete_policy_confirmed_deletes_and_audits(gov_home, monkeypatch):
         (["rabbitmq", "delete-policy", "lim", "--dry-run"], "delete_policy"),
     ],
 )
-def test_cli_rabbit_write_dry_run_makes_no_call_and_no_audit(gov_home, monkeypatch, argv, op):
+def test_cli_rabbit_write_dry_run_never_mutates_but_is_audited(gov_home, monkeypatch, argv, op):
+    """The invariant is: a dry_run MAY read, it must never WRITE.
+
+    The preview routes through the governed twin, so every guard on the write
+    runs against the real target before the banner claims what would happen.
+    That also lands an audit row — not new behaviour but the removal of an
+    inconsistency: MCP dry-runs have always audited (``@governed_tool`` wraps
+    the function regardless of ``dry_run``), the CLI was the outlier.
+
+    The no-read half of the old assertion is deliberately gone: reading a
+    before-state is what lets a preview be accurate. Only the MUTATING verbs
+    are forbidden, so this keeps stating the rule if a twin later fetches
+    before-state during a preview.
+    """
     from queue_aiops.cli import app
 
     conn = _wire(monkeypatch, {})
     result = runner.invoke(app, argv)
     assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
-    assert conn._client.requests == []
-    assert not (gov_home / "audit.db").exists()
+    mutating = [(m, p) for m, p, _ in conn._client.requests
+                if m.upper() in {"POST", "PUT", "PATCH", "DELETE"}]
+    assert mutating == []
+    assert _audit_tools(gov_home / "audit.db") == [op]
+
+
+@pytest.mark.unit
+def test_cli_set_policy_dry_run_renders_the_real_parameters(gov_home, monkeypatch):
+    """An ordinary (allowed) preview still renders the human banner, not JSON.
+
+    Routing through the governed call buys the guard and the audit row; it must
+    not change what the operator reads. The rendered params come from the CLI's
+    own arguments, so the banner reports the definition it actually parsed.
+    """
+    from queue_aiops.cli import app
+
+    _wire(monkeypatch, {})
+    result = runner.invoke(
+        app,
+        ["rabbitmq", "set-policy", "lim", "^work\\.", '{"max-length": 9000}',
+         "--priority", "7", "--dry-run"],
+    )
+    assert result.exit_code == 0, result.output
+    assert "DRY-RUN" in result.output
+    assert "set_policy" in result.output
+    assert "max-length" in result.output
+    assert "7" in result.output
+    assert '"dryRun"' not in result.output  # a banner for humans, not a JSON dump
+    assert _audit_tools(gov_home / "audit.db") == ["set_policy"]

@@ -22,7 +22,7 @@ compatibility: >
   Standalone, self-governed broker operations across redis (RESP wire protocol via the redis Python client; password optional — auth-less lab instances are supported — TLS optional) and rabbitmq (management HTTP API /api/..., HTTP Basic auth with a monitoring/management-tagged user). Each target in the config names its own platform, and a name-keyed platform registry selects the protocol shape, so one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.queue-aiops/ (relocatable via QUEUE_AIOPS_HOME).
   Credentials: the redis password (optional) or the rabbitmq management password is stored ENCRYPTED in ~/.queue-aiops/secrets.enc (Fernet/AES-128 + scrypt-derived key) — never plaintext on disk. Run 'queue-aiops init' to onboard (it asks for the platform), or 'queue-aiops secret set <target>' to add one. The store is unlocked by a master password from QUEUE_AIOPS_MASTER_PASSWORD (non-interactive/MCP/CI) or an interactive prompt (CLI on a TTY). A legacy plaintext env var QUEUE_<TARGET_NAME_UPPER>_SECRET is still honoured as a fallback with a deprecation warning (migrate with 'queue-aiops secret migrate'). The secret is presented as AUTH at connect time (redis) or HTTP Basic auth (rabbitmq) and held only in memory; secrets are never logged or echoed.
-  State-changing operations pass through the @governed_tool decorator (pre-check + budget guard + audit + risk-tier gate). purge_queue and delete_queue are risk=high with dry_run + an approver gate; purge is irreversible (priorState = the message count about to be destroyed), and delete_queue's undo re-declares the captured queue definition — the messages are NOT restored. Reversible writes (redis_config_set, set_policy, delete_policy, declare_queue) capture the real fetched before-state and record an inverse undo descriptor.
+  State-changing operations pass through the @governed_tool decorator (budget guard + audit + risk-tier labelling). purge_queue and delete_queue are risk=high with dry_run + double confirmation at the CLI; purge is irreversible (priorState = the message count about to be destroyed), and delete_queue's undo re-declares the captured queue definition — the messages are NOT restored. Reversible writes (redis_config_set, set_policy, delete_policy, declare_queue) capture the real fetched before-state and record an inverse undo descriptor.
   Safety: the redis surface is a typed command allow-list (no generic passthrough) and big-key sampling is SCAN-based under a hard budget — never KEYS *. rabbitmq path segments (queue/policy names and the default vhost '/') are percent-encoded centrally.
   Webhooks: none — no outbound network calls beyond the configured redis instances / rabbitmq management API.
   Transitive dependencies: the redis Python client, httpx (HTTP client), and the MCP SDK. No post-install scripts or background services.
@@ -36,7 +36,7 @@ Governed broker operations — **28 MCP tools** across **redis** (RESP client) a
 **rabbitmq** (management HTTP API), every one wrapped with the bundled
 `@governed_tool` harness: a local unified audit log under `~/.queue-aiops/`,
 policy engine, token/runaway budget guard, undo-token recording, and
-graduated-autonomy risk tiers. A per-target `platform` field selects the
+descriptive risk tiers. A per-target `platform` field selects the
 protocol shape, so one config can span a mixed estate. The redis password /
 rabbitmq management password is stored **encrypted**
 (`~/.queue-aiops/secrets.enc`, Fernet + scrypt) — never plaintext on disk.
@@ -88,8 +88,8 @@ queue-aiops doctor
   `rabbitmq connections`) — clients grouped by source
 - Safely change state: `redis config-set` (undo = prior value), `rabbitmq
   set-policy`/`delete-policy` (undo = prior policy), `declare-queue`, and the
-  high-risk `purge`/`delete-queue` (dry-run + approver; messages are not
-  restorable)
+  high-risk `purge`/`delete-queue` (dry-run + double confirmation; messages are
+  not restorable)
 
 **Do NOT use when** the target is not a redis/rabbitmq broker — route
 hypervisor, storage, backup, cluster/orchestration, database, network,
@@ -176,7 +176,7 @@ skill.
 7. **Failure branch**: do **not** reach for `rabbitmq purge` as a first response — it is
    **irreversible, risk=high, and destroys real messages**; if the cause from step 3 was
    "no consumers", those messages are the backlog your consumers still need. Purge only
-   with explicit sign-off, `--dry-run` read first, and `QUEUE_AUDIT_APPROVED_BY` set.
+   with explicit sign-off, a `--dry-run` read first, and the CLI double confirmation.
    A `max-length` policy also **drops messages** once the cap is hit — if that is not
    acceptable, `queue-aiops undo apply <id>` restores the prior policy and the real fix
    is consumer capacity.
@@ -189,7 +189,7 @@ skill.
 3. `queue-aiops rabbitmq policies` → check no policy still targets its name pattern, so
    you are not leaving a dangling rule behind.
 4. `queue-aiops rabbitmq delete-queue <name> --vhost / --dry-run` → preview.
-5. Re-run without `--dry-run` (double-confirm, risk=high, approver required) — the write
+5. Re-run without `--dry-run` (double-confirm, risk=high) — the write
    captures the queue's definition first, so the undo descriptor **re-declares exactly
    that queue** (durability and auto-delete flags included).
 6. `queue-aiops rabbitmq queues` → confirm it is gone and nothing else changed.
@@ -201,15 +201,23 @@ skill.
 
 ## Governance & Safety
 
-- Every tool is audited to `~/.queue-aiops/audit.db` (relocatable via
-  `QUEUE_AIOPS_HOME`).
-- **Secure by default**: with no `~/.queue-aiops/rules.yaml`, high-risk ops
-  (`purge_queue`, `delete_queue`) are denied unless `QUEUE_AUDIT_APPROVED_BY`
-  names an approver (set `QUEUE_AUDIT_RATIONALE` too). `queue-aiops init`
-  seeds a starter rules.yaml; an operator-authored rules file is honoured
-  as-is.
-- Writes support `--dry-run` and double confirmation at the CLI; CLI writes
-  execute through the governed twins, so they are audited too.
+The skill delivers reads and writes and records them; it does **not** decide
+whether a write is permitted. That is your agent's judgement, or the permission
+of the account you connect it with (a Redis ACL user restricted to read
+commands, a RabbitMQ management user with only the `monitoring` tag — writes
+then fail at the broker). There is no read-only switch, policy file, or approval
+gate.
+
+- **Audit is the guarantee, and it is not bypassable.** Every operation — MCP
+  and CLI alike — is logged to `~/.queue-aiops/audit.db` (relocatable via
+  `QUEUE_AIOPS_HOME`): params (secrets redacted), result, status, duration, and
+  the risk tier. The CLI writes the same row the MCP path does.
+- `QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE` are optional annotations
+  recorded on the audit row (who/why); they are never required and never block.
+- **Runaway guard** — a safety backstop, not authorization: the same call looped
+  in a tight window trips a circuit breaker. Disable with `QUEUE_RUNAWAY_MAX=0`.
+- Writes support `--dry-run` / `dry_run=True` and double confirmation at the CLI;
+  CLI writes execute through the governed twins, so they are audited too.
 - Reversible writes capture the real fetched before-state and record an
   inverse descriptor; `purge_queue` and `redis_kill_client` are irreversible
   and record priorState only. `delete_queue`'s undo restores the queue

@@ -1,6 +1,6 @@
 """Governed broker-write MCP tools (the only state-changing tools).
 
-Every tool is wrapped with the governance harness (audit + graduated approval
+Every tool is wrapped with the governance harness (audit + descriptive risk
 tier) and takes a ``dry_run`` preview. Reversible writes pass an ``undo=``
 callback that turns the fetched before-state into an inverse descriptor the
 harness records; irreversible ones (kill_client, purge_queue) record only the
@@ -214,9 +214,7 @@ def purge_queue(
 
     Reads the queue first so priorState carries the message count about to be
     destroyed (audit evidence); unacked messages are not purged. No undo —
-    purged messages cannot be restored. Requires an approver
-    (QUEUE_AUDIT_APPROVED_BY) under the graduated-autonomy policy. Pass
-    dry_run=True to preview.
+    purged messages cannot be restored. Pass dry_run=True to preview.
 
     Args:
         vhost: The queue's vhost (the default vhost is '/').
@@ -243,9 +241,8 @@ def delete_queue(
 
     Reads the queue first so priorState carries the definition (durable /
     auto_delete / arguments) and message count; the recorded undo re-declares
-    the queue with those properties — its messages are NOT restored. Requires
-    an approver (QUEUE_AUDIT_APPROVED_BY) under the graduated-autonomy policy.
-    Pass dry_run=True to preview.
+    the queue with those properties — its messages are NOT restored. Pass
+    dry_run=True to preview.
 
     Args:
         vhost: The queue's vhost (the default vhost is '/').

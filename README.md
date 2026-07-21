@@ -42,40 +42,24 @@ queue-aiops redis bigkeys      # SCAN-budgeted big-key sample (never KEYS *)
 queue-aiops rabbitmq queues    # deepest backlog first
 ```
 
-## Security: read-only mode
+## What this tool does, and does not, decide
 
-This tool is meant to be handed to an AI agent, so its safety story is enforced
-by the server rather than requested in a prompt:
+It delivers broker operations — reads and writes — accurately and efficiently,
+and records every one of them. It does **not** decide whether a write is allowed
+to happen. That is the agent's judgement, or the permission of the account you
+connect it with: give the Redis connection an ACL user restricted to read
+commands, or the RabbitMQ management user only the `monitoring` tag, and the
+writes fail at the broker — the place that actually owns the permission.
 
-```bash
-export QUEUE_READ_ONLY=1
-```
+So there is no read-only switch, no policy file, no approval gate to configure.
+The one thing the tool guarantees is that nothing is silent: **every call, over
+MCP and over the CLI alike, lands an audit row** in `~/.queue-aiops/audit.db`,
+and reversible writes still capture their before-state and record an inverse.
 
-With that set, the **8 write tools are never registered**. An MCP client
-lists **20 tools instead of 28** — the writes are not hidden, not
-gated behind a flag, and not merely refused when called. They are absent from
-the session. A model cannot invoke a tool it was never offered, and cannot be
-argued into one.
-
-That distinction is the whole point. A tool that exists but refuses still invites
-retry loops and "I'll describe the call instead" behaviour from smaller models,
-and it leaves a reviewer trusting a promise. An absent tool is a fact you can
-check: connect, list the tools, and see that the writes are not there.
-
-Enforcement is two layers deep, so the switch cannot be sidestepped by changing
-entry point:
-
-| Layer | What it does | Covers |
-|---|---|---|
-| `@governed_tool` harness | refuses every non-read operation outright | MCP, CLI, and in-process callers |
-| MCP registration | write tools are removed from `list_tools()` | anything speaking MCP |
-
-Read operations are unaffected, and every call is still audited to
-`~/.queue-aiops/audit.db`.
-
-> The read/write split is derived from each tool's declared `risk_level`, and a
-> test asserts that this never disagrees with the `[READ]`/`[WRITE]` tag in the
-> tool's own documentation — so a write can't quietly present itself as a read.
+> Each tool declares a `risk_level`, kept in agreement with its `[READ]`/`[WRITE]`
+> documentation tag by a test, and carried into the audit row as a descriptive
+> tier — so a reviewer can see at a glance that a row was a high-risk delete. It
+> is a label, not a gate.
 
 Running a smaller / local model? See
 [agent-guardrails.md](skills/queue-aiops/references/agent-guardrails.md) — it lists
@@ -108,19 +92,21 @@ verdict. Big-key sampling walks at most 10,000 keys with SCAN and sizes at most
 
 ## Governance
 
-Every MCP tool runs through the bundled `@governed_tool` harness
-(`queue_aiops.governance` — no external dependency):
+Every MCP tool — and every CLI write, which routes through the same governed
+functions — runs through the bundled `@governed_tool` harness
+(`queue_aiops.governance` — no external dependency). It **records; it does not
+authorize** whether a write may happen (see above):
 
 - **Audit** — every call lands in `~/.queue-aiops/audit.db` (relocatable via
-  `QUEUE_AIOPS_HOME`), secret-redacted.
-- **Budget** — call/time ceilings (`QUEUE_MAX_TOOL_CALLS`,
-  `QUEUE_MAX_TOOL_SECONDS`) + a runaway-loop breaker.
-- **Risk tiers & approval** — **secure by default**: with no
-  `~/.queue-aiops/rules.yaml`, high-risk writes (`purge_queue`,
-  `delete_queue`) are denied unless `QUEUE_AUDIT_APPROVED_BY` names an approver
-  (set `QUEUE_AUDIT_RATIONALE` too). `queue-aiops init` seeds a starter
-  rules.yaml with that dual-control tier; an operator-authored rules file is
-  honoured as-is.
+  `QUEUE_AIOPS_HOME`), secret-redacted. The CLI writes the same row the MCP path
+  does — there is no unaudited entry point.
+- **Budget / runaway guard** — a safety backstop, not an authorization gate:
+  call/time ceilings (`QUEUE_MAX_TOOL_CALLS`, `QUEUE_MAX_TOOL_SECONDS`) + a
+  runaway-loop breaker stop a stuck agent from burning unbounded calls/time.
+- **Risk tier** — a descriptive label on the audit row derived from `risk_level`;
+  it gates nothing. `QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE` are
+  optional annotations recorded on the row (who/why), never required and never
+  blocking.
 - **Undo** — reversible writes capture the real before-state first:
   `redis_config_set` records the prior value from CONFIG GET;
   `set_policy`/`delete_policy` record the prior policy; `delete_queue` records
@@ -129,7 +115,8 @@ Every MCP tool runs through the bundled `@governed_tool` harness
   `redis_kill_client`) record priorState only.
 - **Dry-run + double-confirm** — every write takes `dry_run=True` (MCP) /
   `--dry-run` (CLI); CLI writes double-confirm and execute through the same
-  governed twins, so they land in the audit log too.
+  governed twins, so they land in the audit log too. `purge_queue` and
+  `delete_queue` are risk=high with dry-run + double confirmation at the CLI.
 - Credentials live **encrypted** in `~/.queue-aiops/secrets.enc` (Fernet +
   scrypt master password; `QUEUE_AIOPS_MASTER_PASSWORD` for non-interactive
   use). Redis passwords are optional — an auth-less lab instance is a
@@ -153,9 +140,9 @@ Every MCP tool runs through the bundled `@governed_tool` harness
 
 > **env-block caveat**: MCP clients launch the server with a *minimal*
 > environment — your shell profile is not sourced. Anything the server needs
-> (`QUEUE_AIOPS_MASTER_PASSWORD`, a relocated `QUEUE_AIOPS_HOME`,
-> `QUEUE_AUDIT_APPROVED_BY` for high-risk writes) must be set in the `env`
-> block above, not just in your terminal.
+> (`QUEUE_AIOPS_MASTER_PASSWORD`, a relocated `QUEUE_AIOPS_HOME`, and any
+> optional `QUEUE_AUDIT_APPROVED_BY`/`QUEUE_AUDIT_RATIONALE` audit annotations)
+> must be set in the `env` block above, not just in your terminal.
 
 Or, with the package installed: `queue-aiops mcp`.
 

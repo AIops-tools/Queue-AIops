@@ -9,17 +9,33 @@ the tool now enforces them itself.
 The distinction matters. A guardrail in a prompt is a request. A guardrail in the
 harness is a guarantee. Anything below that we could move into the harness, we did.
 
-## What the tool now enforces — do not waste prompt budget on these
+## Authorization is not this tool's job — decide it where it belongs
+
+Whether a write should happen is your decision, or the account's. The tool does
+not gate it — there is no read-only switch and no approval prompt to configure.
+The two right places to control read vs write:
+
+- **The account you connect with.** Give the Redis connection an ACL user
+  restricted to read commands, or the RabbitMQ management user only the
+  `monitoring` tag (no `management`/`policymaker`). A write then fails at the
+  broker, which is the only place the permission actually lives — a revoked
+  permission cannot be argued around by a model, but a skill-side flag can.
+- **Your agent's system prompt.** If you want an observe-only session, tell the
+  model not to call the write tools (they are clearly tagged `[WRITE]`).
+
+What the tool *does* guarantee is that you can always see what happened:
+
+## What the tool enforces — do not waste prompt budget on these
 
 | You might be tempted to prompt | Why you don't need to |
 |---|---|
-| "Work read-only, never touch a queue" | Set `QUEUE_READ_ONLY=1`. The eight write tools (`declare_queue`, `delete_queue`, `purge_queue`, `set_policy`, `delete_policy`, `redis_config_set`, `redis_kill_client`, `undo_apply`) are then **not registered at all** — they never appear in the tool list, so the model cannot call one even if it tries. The `@governed_tool` harness independently refuses writes, so the CLI is covered too. |
 | "Don't invent a value when a field is missing" | RabbitMQ omits `idle_since` for an active queue; a Redis primary reports no `master_link_status`; an unnamed client has no name. Those come back as `null`, never as `""`. |
 | "Tell me if the output was cut off" | `redis_slowlog`, `redis_clients`, `redis_big_keys`, `list_queues`, `list_connections`, `list_channels` and `list_policies` all return `{"<items>": [...], "returned": N, "limit": L, "truncated": true/false}`. Truncation is measured — one extra entry is requested from Redis — not guessed from a length coincidence. |
 | "Preserve the ordering / tell me what's most urgent" | `rabbitmq_queue_backlog_rca`, `redis_memory_pressure_rca`, `redis_latency_rca` and `connection_churn_analysis` rank findings worst-first, each carrying the measured number it was based on. Priority is in the payload, not implied by list position. |
 | "Don't run KEYS * on production" | `redis_big_keys` uses SCAN under a hard key budget and sizes only an evenly-spaced subset with MEMORY USAGE. There is no code path that can issue `KEYS *`. `coveragePct` reports how partial the walk was. |
-| "Confirm before anything destructive" | `delete_queue` and `purge_queue` require a `--dry-run`-able preview plus double confirmation at the CLI, and a named approver (`QUEUE_AUDIT_APPROVED_BY`) for high-risk tiers. |
-| "Log what you did" | Every governed call is audited to `~/.queue-aiops/audit.db` regardless of what the model says it did. |
+| "Confirm before anything destructive" | `delete_queue` and `purge_queue` require a `--dry-run`-able preview plus double confirmation at the CLI. |
+| "Log what you did" | Every governed call is audited to `~/.queue-aiops/audit.db` regardless of what the model says it did — and the CLI writes the same row the MCP path does, so there is no unaudited entry point. |
+| "Don't get stuck retrying" | The runaway guard trips a circuit breaker if the same call is hammered in a tight loop — a stuck agent is stopped rather than left to burn calls and time. |
 
 ## What still needs a prompt
 
@@ -68,24 +84,24 @@ SCOPE
 
 ## Recommended setup for a local model
 
+Start with a connection that *cannot* write, verify, and widen the account's
+permission only when you trust the setup — the destructive operations here
+destroy data rather than configuration: `purge_queue` discards messages that no
+undo token can bring back.
+
 ```bash
-# Read-only until you trust the setup — this is enforced, not advisory.
-export QUEUE_READ_ONLY=1
+# e.g. connect Redis as an ACL user restricted to read commands, or give the
+# RabbitMQ management user only the `monitoring` tag. Then:
 queue-aiops doctor
 ```
 
-Then, when you are ready to allow writes, unset it and set an approver so the
-high-risk tier has an accountable name on it:
+Optionally annotate the audit trail with who is operating and why — recorded on
+every row, never required:
 
 ```bash
-unset QUEUE_READ_ONLY
 export QUEUE_AUDIT_APPROVED_BY="your.name@example.com"
 export QUEUE_AUDIT_RATIONALE="draining the dead-letter queue, ticket OPS-881"
 ```
-
-Read-only is worth the extra step here because the destructive operations
-destroy data rather than configuration: `purge_queue` discards messages that no
-undo token can bring back.
 
 ## If your model still struggles
 

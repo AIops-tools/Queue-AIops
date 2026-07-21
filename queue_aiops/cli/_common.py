@@ -23,10 +23,18 @@ DryRunOption = Annotated[
 
 
 def _cli_error_types() -> tuple[type[BaseException], ...]:
-    """Exceptions translated to a one-line teaching error instead of a traceback."""
-    from queue_aiops.connection import QueueApiError
+    """Exceptions translated to a one-line teaching error instead of a traceback.
 
-    return (QueueApiError, KeyError, OSError, ValueError)
+    ``BudgetExceeded`` (and the retained ``PolicyDenied`` type) are raised by
+    ``@governed_tool`` OUTSIDE the tool body, so ``tool_errors`` never sees them
+    and they never arrive as an ``{"error": ...}`` dict. Their message is the
+    teaching text (e.g. which budget was hit) — without them here such a refusal
+    reaches the CLI as a traceback instead.
+    """
+    from queue_aiops.connection import QueueApiError
+    from queue_aiops.governance import BudgetExceeded, PolicyDenied
+
+    return (QueueApiError, PolicyDenied, BudgetExceeded, KeyError, OSError, ValueError)
 
 
 def cli_errors(fn: Callable) -> Callable:

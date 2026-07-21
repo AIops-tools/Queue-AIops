@@ -13,7 +13,7 @@ from queue_aiops.cli._common import (
     cli_errors,
     console,
     double_confirm,
-    dry_run_print,
+    dry_run_preview,
     get_connection,
 )
 
@@ -149,8 +149,12 @@ def rabbit_purge(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="purge_queue", api_call="DELETE queue contents",
-                      parameters={"vhost": vhost, "name": name})
+        # Through the governed twin, so the preview is audited and any harness
+        # refusal surfaces here rather than after a green banner.
+        dry_run_preview(
+            gov.purge_queue(vhost=vhost, name=name, dry_run=True, target=target),
+            operation="purge_queue", api_call="DELETE queue contents",
+            parameters={"vhost": vhost, "name": name})
         return
     double_confirm("purge queue", name)
     console.print_json(json.dumps(gov.purge_queue(vhost=vhost, name=name, target=target)))
@@ -168,8 +172,12 @@ def rabbit_delete_queue(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="delete_queue", api_call="DELETE queue",
-                      parameters={"vhost": vhost, "name": name})
+        # Through the governed twin, so the preview is audited and any harness
+        # refusal surfaces here rather than after a green banner.
+        dry_run_preview(
+            gov.delete_queue(vhost=vhost, name=name, dry_run=True, target=target),
+            operation="delete_queue", api_call="DELETE queue",
+            parameters={"vhost": vhost, "name": name})
         return
     double_confirm("delete queue", name)
     console.print_json(json.dumps(gov.delete_queue(vhost=vhost, name=name, target=target)))
@@ -193,9 +201,14 @@ def rabbit_declare_queue(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="declare_queue", api_call="PUT queue",
-                      parameters={"vhost": vhost, "name": name, "durable": durable,
-                                  "auto_delete": auto_delete})
+        # Through the governed twin, so the preview is audited and any harness
+        # refusal surfaces here rather than after a green banner.
+        dry_run_preview(
+            gov.declare_queue(vhost=vhost, name=name, durable=durable,
+                              auto_delete=auto_delete, dry_run=True, target=target),
+            operation="declare_queue", api_call="PUT queue",
+            parameters={"vhost": vhost, "name": name, "durable": durable,
+                        "auto_delete": auto_delete})
         return
     double_confirm("declare queue", name)
     console.print_json(json.dumps(gov.declare_queue(
@@ -227,10 +240,16 @@ def rabbit_set_policy(
     except json.JSONDecodeError as exc:
         raise ValueError(f"'definition' must be valid JSON: {exc}") from exc
     if dry_run:
-        dry_run_print(operation="set_policy", api_call="PUT policy",
-                      parameters={"vhost": vhost, "name": name, "pattern": pattern,
-                                  "definition": definition_obj, "priority": priority,
-                                  "apply_to": apply_to})
+        # Through the governed twin, so the preview is audited and any harness
+        # refusal surfaces here rather than after a green banner.
+        dry_run_preview(
+            gov.set_policy(vhost=vhost, name=name, pattern=pattern,
+                           definition=definition_obj, priority=priority,
+                           apply_to=apply_to, dry_run=True, target=target),
+            operation="set_policy", api_call="PUT policy",
+            parameters={"vhost": vhost, "name": name, "pattern": pattern,
+                        "definition": definition_obj, "priority": priority,
+                        "apply_to": apply_to})
         return
     double_confirm("set policy", name)
     console.print_json(json.dumps(gov.set_policy(
@@ -251,8 +270,12 @@ def rabbit_delete_policy(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="delete_policy", api_call="DELETE policy",
-                      parameters={"vhost": vhost, "name": name})
+        # Through the governed twin, so the preview is audited and any harness
+        # refusal surfaces here rather than after a green banner.
+        dry_run_preview(
+            gov.delete_policy(vhost=vhost, name=name, dry_run=True, target=target),
+            operation="delete_policy", api_call="DELETE policy",
+            parameters={"vhost": vhost, "name": name})
         return
     double_confirm("delete policy", name)
     console.print_json(json.dumps(gov.delete_policy(vhost=vhost, name=name, target=target)))

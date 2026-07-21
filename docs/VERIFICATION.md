@@ -14,8 +14,8 @@ Exercised end-to-end against a real **Redis 7.4.9** server (Docker) seeded with
   (key count matched `DBSIZE` exactly).
 - All four analyses ran clean: `analyze memory/latency/backlog/churn`.
 - Governance loop end-to-end: `redis_config_set` really changed
-  `maxmemory-policy`, captured `noeviction` as `priorState`, wrote an audit row
-  with approver, and `undo_apply` restored the prior value on the live server.
+  `maxmemory-policy`, captured `noeviction` as `priorState`, wrote an audit row,
+  and `undo_apply` restored the prior value on the live server.
 
 **A real defect was found and fixed by this run**: integer quantities were
 rendered as floats — `202.0` keys, `1.0` connected clients, float byte counts —

@@ -7,7 +7,7 @@ double-confirm before executing through the governed MCP twins (audited).
 ## Top level
 
 ```bash
-queue-aiops init                 # onboarding wizard (targets + encrypted secrets + rules.yaml)
+queue-aiops init                 # onboarding wizard (targets + encrypted secrets)
 queue-aiops doctor [--skip-auth] # config/secret/connectivity check (PING / /api/overview)
 queue-aiops overview [-t T]      # one-shot health summary (platform-dispatched)
 queue-aiops mcp                  # run the MCP server (stdio)
@@ -60,7 +60,8 @@ queue-aiops rabbitmq set-policy <name> '<pattern>' '{"max-length": 100000}' \
 queue-aiops rabbitmq delete-policy <name> [--vhost /] [--dry-run]
 ```
 
-High-risk writes (`purge`, `delete-queue`) additionally need a named approver:
+`QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE` are optional — set them to
+record who ran a write and why on the audit row (never required, never block):
 
 ```bash
 export QUEUE_AUDIT_APPROVED_BY="alice"

@@ -84,9 +84,9 @@ finding carries `cause`, `action`, and `evidence` numbers.
 | `purge_queue(vhost, name)` | **high** | message count about to be destroyed | none — messages unrecoverable |
 | `delete_queue(vhost, name)` | **high** | full queue definition + message count | re-declare the captured definition (**messages NOT restored**) |
 
-Every write takes `dry_run` (MCP) / `--dry-run` + double-confirm (CLI). High
-risk requires an approver under the seeded `rules.yaml`
-(`QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE`).
+Every write takes `dry_run` (MCP) / `--dry-run` + double-confirm (CLI); the two
+high-risk writes (`purge_queue`, `delete_queue`) are gated by that same dry-run
+preview + double confirmation at the CLI, nothing more.
 
 ### Undo (2)
 
@@ -99,11 +99,10 @@ risk requires an approver under the seeded `rules.yaml`
 
 | Variable | Purpose |
 |----------|---------|
-| `QUEUE_AIOPS_HOME` | Relocate `~/.queue-aiops` (audit/undo/policy/config state) |
+| `QUEUE_AIOPS_HOME` | Relocate `~/.queue-aiops` (audit/undo/config state) |
 | `QUEUE_AIOPS_CONFIG` | Explicit config.yaml path for the MCP server |
 | `QUEUE_AIOPS_MASTER_PASSWORD` | Unlock the encrypted secret store non-interactively |
-| `QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE` | Named approver + rationale for high-risk writes |
+| `QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE` | Optional approver/rationale annotations recorded on the audit row |
 | `QUEUE_MAX_TOOL_CALLS` / `QUEUE_MAX_TOOL_SECONDS` | Budget ceilings |
 | `QUEUE_RUNAWAY_MAX` / `QUEUE_RUNAWAY_WINDOW_SEC` | Runaway-loop breaker tuning |
-| `QUEUE_POLICY_DISABLED` | Escape hatch: disable the policy engine (not recommended) |
 | `QUEUE_<TARGET>_SECRET` | Legacy plaintext secret fallback (deprecated) |

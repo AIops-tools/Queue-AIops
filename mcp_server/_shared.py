@@ -120,7 +120,7 @@ mcp = FastMCP(
         "heuristics that show their numbers. Governed writes — config_set and "
         "set_policy/delete_policy (reversible, undo-recorded), declare_queue, "
         "kill_client (priorState only), plus purge_queue / delete_queue at "
-        "risk=high with a dry_run preview and an approver (delete_queue's undo "
+        "risk=high with a dry_run preview (delete_queue's undo "
         "re-declares the captured definition; messages are not restored). Every "
         "tool runs through the queue-aiops governance harness (audit / budget / "
         "risk-tier / undo). A per-target 'platform' field selects the protocol "

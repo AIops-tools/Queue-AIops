@@ -2,7 +2,7 @@
 
 Real execution is delegated to the ``@governed_tool``-wrapped functions in
 ``mcp_server.tools.undo`` so an applied undo is audited on the SAME governance
-path as any other write (the inverse tool it dispatches is itself re-gated).
+path as any other write (the inverse tool it dispatches is itself governed).
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from queue_aiops.cli._common import (
     cli_errors,
     console,
     double_confirm,
-    dry_run_print,
+    dry_run_preview,
 )
 
 undo_app = typer.Typer(
@@ -51,11 +51,17 @@ def undo_apply_cmd(
     from mcp_server.tools import undo as gov
 
     if dry_run:
+        # This path already routed through the governed call, but rendered the
+        # result unconditionally: an unknown id, an already-applied token or an
+        # unregistered inverse came back as {"error": ...} and still printed a
+        # green banner naming inverse '?'. dry_run_preview reports the refusal.
         preview = gov.undo_apply(undo_id=undo_id, dry_run=True, target=target)
-        dry_run_print(
+        would = preview.get("wouldApply", {}) if isinstance(preview, dict) else {}
+        dry_run_preview(
+            preview,
             operation="undo_apply",
-            api_call=f"inverse: {preview.get('wouldApply', {}).get('tool', '?')}",
-            parameters=preview.get("wouldApply", {}).get("params", {}),
+            api_call=f"inverse: {would.get('tool', '?')}",
+            parameters=would.get("params", {}),
         )
         return
     double_confirm("apply undo", undo_id)

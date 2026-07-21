@@ -112,7 +112,7 @@ def test_undo_apply_unregistered_inverse_errors(gov_home):
 @pytest.mark.unit
 def test_cli_undo_apply_dry_run_renders(gov_home):
     """The `undo apply --dry-run` CLI path must render without error — guards
-    against dry_run_print signature drift across tools (api_call vs detail)."""
+    against dry_run_preview signature drift across tools (api_call vs detail)."""
     from typer.testing import CliRunner
 
     from queue_aiops.cli import app
@@ -123,6 +123,27 @@ def test_cli_undo_apply_dry_run_renders(gov_home):
     assert "DRY-RUN" in result.output
     assert _CALLS == []
     assert undo_mod.get_undo_store().get(uid)["status"] == "recorded"
+
+
+@pytest.mark.unit
+def test_cli_undo_apply_dry_run_refused_exits_nonzero_without_banner(gov_home):
+    """A refused undo preview must report the refusal, not a green banner.
+
+    This path always called the governed twin, but rendered its result
+    unconditionally: an unknown id came back as {"error": ...} and still printed
+    a DRY-RUN banner naming inverse '?' with exit code 0 — a preview claiming an
+    operation is ready to run when it cannot run at all.
+    """
+    from typer.testing import CliRunner
+
+    from queue_aiops.cli import app
+
+    result = CliRunner().invoke(app, ["undo", "apply", "deadbeef", "--dry-run"])
+    assert result.exit_code == 1
+    assert "DRY-RUN" not in result.output
+    assert "?" not in result.output
+    assert "Unknown undo id" in " ".join(result.output.split())
+    assert _CALLS == []
 
 
 @pytest.mark.unit

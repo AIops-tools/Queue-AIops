@@ -89,6 +89,29 @@ def test_cli_config_set_dry_run_mutates_nothing_but_is_audited(gov_home, cache_c
 
 
 @pytest.mark.unit
+def test_cli_config_set_dry_run_refused_by_guard_exits_nonzero_without_banner(
+    gov_home, cache_conn
+):
+    """A preview whose real call would be refused must REPORT the refusal.
+
+    This is the whole point of routing the preview through the governed twin:
+    the self-lockout guard is reachable from the preview, so the CLI cannot
+    print a green 'here is what would happen' for an operation that is then
+    refused. That sequence is the weak-model trap — a green preview followed by
+    a refusal reads as transient, and the model retries.
+    """
+    from queue_aiops.cli import app
+
+    result = CliRunner().invoke(
+        app, ["redis", "config-set", "requirepass", "hunter2", "--dry-run"]
+    )
+    assert result.exit_code == 1
+    assert "DRY-RUN" not in result.output
+    assert "Refusing to CONFIG SET" in result.output
+    assert all(c[0] != "config_set" for c in cache_conn._client.calls)
+
+
+@pytest.mark.unit
 def test_cli_config_set_confirmed_goes_through_governance(gov_home, cache_conn):
     """Confirmed CLI write must execute via the governed twin: the client call
     fires AND an audit row lands in audit.db (this is what the reroute fix
@@ -119,8 +142,9 @@ def test_cli_config_set_aborts_without_double_confirm(gov_home, cache_conn):
 def test_cli_purge_confirmed_goes_through_governance_with_approver(
     gov_home, broker_conn, monkeypatch
 ):
-    """purge_queue is risk=high: with an approver set, the confirmed CLI purge
-    executes and both the DELETE and the audit row happen."""
+    """purge_queue is risk=high: the confirmed CLI purge executes through the
+    governed twin and both the DELETE and the audit row happen. APPROVED_BY is
+    set only to show it lands on the audit row as an optional annotation."""
     monkeypatch.setenv("QUEUE_AUDIT_APPROVED_BY", "queueops-alice")
     from queue_aiops.cli import app
 
@@ -132,10 +156,19 @@ def test_cli_purge_confirmed_goes_through_governance_with_approver(
 
 
 @pytest.mark.unit
-def test_cli_purge_dry_run_makes_no_call(gov_home, broker_conn):
+def test_cli_purge_dry_run_never_mutates_but_is_audited(gov_home, broker_conn):
+    """The invariant is: a dry_run MAY read, it must never WRITE.
+
+    purge_queue is risk=high, but a preview changes nothing and is governed like
+    any other call: it routes through the governed twin, so the mutating verbs
+    never fire and the preview still lands an audit row.
+    """
     from queue_aiops.cli import app
 
     result = CliRunner().invoke(app, ["rabbitmq", "purge", "orders", "--dry-run"])
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     assert "DRY-RUN" in result.output
-    assert broker_conn._client.requests == []
+    mutating = [(m, p) for m, p, _ in broker_conn._client.requests
+                if m.upper() in {"POST", "PUT", "PATCH", "DELETE"}]
+    assert mutating == []
+    assert _audit_tools(gov_home / "audit.db") == ["purge_queue"]

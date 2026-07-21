@@ -40,8 +40,10 @@ Every MCP tool runs through the bundled `@governed_tool` harness
 - **Token/runaway budget** — hard ceilings (`QUEUE_MAX_TOOL_CALLS` /
   `QUEUE_MAX_TOOL_SECONDS`) plus an on-by-default guard that trips a tight
   poll/retry loop, preventing unbounded API consumption.
-- **Graduated risk tiers** — `~/.queue-aiops/rules.yaml` `risk_tiers` gate
-  writes by environment/tag; the highest tiers require a recorded approver.
+- **Risk tier** — a descriptive label on each audit row derived from
+  `risk_level`; it gates nothing. `QUEUE_AUDIT_APPROVED_BY` /
+  `QUEUE_AUDIT_RATIONALE` are optional annotations recorded on the row, never
+  required and never blocking.
 - **Undo-token recording** — reversible writes capture the BEFORE state (via a
   real read) and record an inverse descriptor (e.g. `redis_config_set` restores
   the prior value from CONFIG GET; `delete_queue` re-declares the captured
@@ -50,9 +52,8 @@ Every MCP tool runs through the bundled `@governed_tool` harness
 
 ### State-Changing Operations
 The destructive writes — `purge_queue` and `delete_queue` — are
-`risk_level=high`, accept a `dry_run` preview, and (under `risk_tiers`) require
-a recorded approver (`QUEUE_AUDIT_APPROVED_BY` + `QUEUE_AUDIT_RATIONALE`).
-Purged/deleted **messages cannot be restored** — `purge_queue` records the
+`risk_level=high`, accept a `dry_run` preview, and require double confirmation
+at the CLI. Purged/deleted **messages cannot be restored** — `purge_queue` records the
 prior message count as audit evidence (no undo) and `delete_queue`'s undo
 restores the queue *definition* only. `redis_config_set`, `redis_kill_client`
 (priorState = the client's CLIENT LIST row; no undo), `declare_queue`,
