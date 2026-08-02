@@ -74,6 +74,10 @@ def as_int(value: Any) -> int:
     Non-numeric/absent yields ``0`` to match :func:`num`'s contract for these
     always-present INFO fields.
     """
+    if isinstance(value, bool):  # bool subclasses int; not a quantity
+        return 0
+    if isinstance(value, int):
+        return value  # already exact — never round-trip through float64
     try:
         return int(float(value))
     except (TypeError, ValueError):
