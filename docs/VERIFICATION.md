@@ -37,5 +37,29 @@ plus a regression test that asserts the *type*, keeping genuine ratios
   slave`). Still untested: an actual **failover** through Sentinel, and any
   cluster-wide aggregate — this tool talks to one endpoint by design, which is
   exactly why the scope marker matters.
-- AUTH-enabled Redis and TLS connections.
-- `kill-client` against a real blocked client.
+- ~~AUTH-enabled Redis and TLS connections.~~ **Both verified 2026-08-03**
+  against a real Redis 7.4 (Docker). AUTH: without the password every read
+  fails with a clear `Authentication required` envelope (nulls + `errors`, not
+  a silent empty); with the password via the encrypted-store/env fallback,
+  `overview`/`keyspace` matched `DBSIZE` exactly. TLS: `use_tls` with
+  `verify_ssl: false` connects over a `rediss://` socket to a self-signed
+  instance and returns the right key count; `verify_ssl: true` against the same
+  self-signed cert fails with `CERTIFICATE_VERIFY_FAILED` — TLS verification is
+  really enforced, not silently downgraded.
+- ~~`kill-client` against a real blocked client.~~ **Verified 2026-08-03**: a
+  client genuinely blocked on `BLPOP` was listed by `redis clients` (with the
+  tool's own connection correctly excluded), the `--dry-run` preview recorded a
+  `wouldKill` audit row *without* killing, the real kill removed it server-side
+  (confirmed via `CLIENT LIST`), and its CLIENT LIST row was captured as
+  `priorState`. Both the preview and the real call wrote audit rows through the
+  same governed twin.
+
+  **A real defect was found and fixed by this run** (bug class #2/#4): the write
+  path rendered integer quantities as floats — `ageSeconds: 49.0` in
+  `kill_client`'s `priorState`, and likewise `messages`/`priority` in the
+  RabbitMQ purge/policy captures — because `ops/writes.py` still routed them
+  through `num()`. It was missed in the earlier read-path sweep (it did not even
+  import `as_int`), and was inconsistent with `list_clients`, which already
+  rendered the identical CLIENT LIST `age` field as an `int`. Fixed with
+  `as_int()` and a type-asserting regression test (equality cannot catch it:
+  `49 == 49.0`); `ageSeconds` re-confirmed as `4` (int) on a live re-kill.

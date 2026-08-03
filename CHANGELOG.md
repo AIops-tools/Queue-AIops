@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Write-path integer quantities stay integers** (bug class #2/#4). `ops/writes.py` still rendered whole-second and count fields through the float helper `num()` — `kill_client`'s `priorState.ageSeconds` came back as `49.0`, and the RabbitMQ purge/policy captures rendered `messages` and `priority` as floats too. It was missed in the earlier read-path sweep (the module did not even import `as_int`) and was inconsistent with `list_clients`, which already rendered the identical CLIENT LIST `age` field as an `int`. Now uses `as_int`; a regression test asserts the *type* (equality cannot catch `49 == 49.0`). Found live while verifying `kill-client` against a real blocked `BLPOP` client on Redis 7.4.
+
 ## v0.6.0 — 2026-08-03
 
 ### Fixed

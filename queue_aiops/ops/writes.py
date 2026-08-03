@@ -42,7 +42,7 @@ import re
 from typing import Any
 
 from queue_aiops.connection import QueueApiError
-from queue_aiops.ops._util import as_obj, num, opt, s
+from queue_aiops.ops._util import as_int, as_obj, opt, s
 
 # CONFIG SET parameter names are plain words (e.g. maxmemory-policy); reject
 # anything else before it reaches the wire.
@@ -220,7 +220,7 @@ def kill_client(conn: Any, client_id: int = 0, addr: str = "") -> dict:
                 "addr": opt(c.get("addr"), 64),
                 "name": opt(c.get("name"), 64),
                 "lastCommand": opt(c.get("cmd"), 64),
-                "ageSeconds": num(c.get("age")),
+                "ageSeconds": as_int(c.get("age")),
             }
             break
     killed = (
@@ -246,7 +246,7 @@ def _queue_def(conn: Any, vhost: str, name: str) -> dict:
         conn.platform.normalise(conn.get(conn.platform.path("queue", vhost=vhost, name=name)))
     )
     return {
-        "messages": num(obj.get("messages")),
+        "messages": as_int(obj.get("messages")),
         "durable": bool(obj.get("durable")),
         "autoDelete": bool(obj.get("auto_delete")),
         "arguments": as_obj(obj.get("arguments")),
@@ -350,7 +350,7 @@ def _policy_or_none(conn: Any, vhost: str, name: str) -> dict | None:
     return {
         "pattern": opt(obj.get("pattern"), 128),
         "definition": as_obj(obj.get("definition")),
-        "priority": num(obj.get("priority")),
+        "priority": as_int(obj.get("priority")),
         "applyTo": opt(obj.get("apply-to") or obj.get("apply_to") or "all", 32),
     }
 

@@ -71,6 +71,42 @@ def test_kill_client_requires_id_or_addr():
         ops.kill_client(conn)
 
 
+@pytest.mark.unit
+def test_write_prior_state_integer_quantities_stay_int():
+    """priorState counts/whole-seconds must be int, not float (bug class #2/#4).
+
+    CLIENT LIST ``age`` (whole seconds), a queue's ``messages`` count and a
+    policy ``priority`` are integer quantities. The write path rendered them
+    through ``num`` → ``120.0``/``1234.0``/``3.0`` — inconsistent with the read
+    path (``list_clients`` already uses ``as_int``) and semantically wrong. An
+    equality assertion cannot catch this (``120 == 120.0``); assert the *type*.
+    ``bool`` must not sneak through the int check (it subclasses int).
+    """
+    kc = ops.kill_client(
+        redis_conn(clients=[{"id": "77", "addr": "10.0.0.5:5000", "cmd": "blpop",
+                             "age": "120"}]),
+        client_id=77,
+    )
+    age = kc["priorState"]["client"]["ageSeconds"]
+    assert isinstance(age, int) and not isinstance(age, bool) and age == 120
+
+    purge = ops.purge_queue(
+        rabbit_conn({("GET", "/api/queues/%2F/orders"): _Q,
+                     ("DELETE", "/api/queues/%2F/orders/contents"): {}}),
+        "/", "orders",
+    )
+    msgs = purge["priorState"]["messages"]
+    assert isinstance(msgs, int) and not isinstance(msgs, bool) and msgs == 1234
+
+    policy = ops.set_policy(
+        rabbit_conn({("GET", "/api/policies/%2F/lim"): _POLICY,
+                     ("PUT", "/api/policies/%2F/lim"): {}}),
+        "/", "lim", "^work\\.", {"max-length": 9000}, priority=4,
+    )
+    prio = policy["priorState"]["policy"]["priority"]
+    assert isinstance(prio, int) and not isinstance(prio, bool) and prio == 3
+
+
 # ── rabbitmq purge/delete prior-state capture ────────────────────────────────
 
 _Q = {"name": "orders", "vhost": "/", "messages": 1234, "durable": True,
