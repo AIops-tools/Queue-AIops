@@ -308,3 +308,36 @@ def test_queue_overview_rabbitmq_shape_degrades_partially():
     assert out["platform"] == "rabbitmq"
     assert out["queues"] == 12
     assert any("nodes:" in e for e in out["errors"])
+
+
+@pytest.mark.unit
+def test_keyspace_marks_a_cluster_node_count_as_partial():
+    """A cluster node's key count is per-shard and must say so.
+
+    ``INFO keyspace`` on a Redis Cluster node answers for its own slots only, so
+    a 3-master cluster holding 300 keys reports 100 here. Emitting that as
+    ``totalKeys`` with nothing else in the payload states a dataset-wide figure
+    that is wrong by the shard count. Measured on a real 3-master Redis 7.4
+    cluster: 100 / 92 / 108.
+    """
+    conn = redis_conn(info={
+        "keyspace": {"db0": "keys=100,expires=0,avg_ttl=0"},
+        "server": {"redis_mode": "cluster"},
+    })
+    out = redis_reads.keyspace(conn)
+    assert out["totalKeys"] == 100
+    assert out["scope"] == "node"
+    assert out["clusterMode"] is True
+    assert "THIS node" in out["note"]
+
+
+@pytest.mark.unit
+def test_keyspace_on_a_standalone_server_is_scoped_whole():
+    conn = redis_conn(info={
+        "keyspace": {"db0": "keys=7,expires=0,avg_ttl=0"},
+        "server": {"redis_mode": "standalone"},
+    })
+    out = redis_reads.keyspace(conn)
+    assert out["scope"] == "server"
+    assert out["clusterMode"] is False
+    assert "note" not in out

@@ -190,8 +190,38 @@ def config_get(conn: Any, pattern: str = "*") -> dict:
         return {"error": s(exc, 200)}
 
 
+def _scope(conn: Any) -> dict:
+    """Whether the counts that follow describe the whole dataset or one shard.
+
+    A Redis Cluster node answers ``INFO keyspace`` for **its own slots only**, so
+    on a three-master cluster holding 300 keys this reports 100 — a number that
+    is wrong by the shard count and, called ``totalKeys`` with nothing else in
+    the payload, reads as the whole dataset. Measured on a real 3-master Redis
+    7.4 cluster. The marker travels with the counts so a consumer can tell a
+    complete answer from a partial one.
+    """
+    try:
+        mode = str(as_obj(conn.redis_info("server")).get("redis_mode") or "")
+    except Exception:  # noqa: BLE001 — scope is an annotation, never the answer
+        return {"scope": "server", "clusterMode": None}
+    if mode != "cluster":
+        return {"scope": "server", "clusterMode": False}
+    return {
+        "scope": "node",
+        "clusterMode": True,
+        "note": (
+            "Redis Cluster: these counts cover THIS node's slots only, not the "
+            "whole cluster. Query each master, or use a cluster-aware client, "
+            "for a dataset-wide figure."
+        ),
+    }
+
+
 def keyspace(conn: Any) -> dict:
-    """[READ] Per-db key counts + expiry coverage from INFO keyspace."""
+    """[READ] Per-db key counts + expiry coverage from INFO keyspace.
+
+    On a cluster node the counts are per-shard; the returned ``scope`` says so.
+    """
     try:
         info = as_obj(conn.redis_info("keyspace"))
         dbs = []
@@ -208,7 +238,11 @@ def keyspace(conn: Any) -> dict:
                     "avgTtlMs": as_int(cell.get("avg_ttl")),
                 }
             )
-        return {"databases": dbs, "totalKeys": sum(d["keys"] for d in dbs)}
+        return {
+            "databases": dbs,
+            "totalKeys": sum(d["keys"] for d in dbs),
+            **_scope(conn),
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
 

@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- **A cluster node's key count no longer poses as the whole dataset.** `INFO keyspace` on a Redis Cluster node answers for that node's slots only, so `keyspace` / `overview` reported `totalKeys: 100` for a 3-master cluster actually holding 300 — a dataset-wide claim wrong by the shard count, with nothing in the payload to say otherwise. Both now carry `scope` (`node` vs `server`), `clusterMode`, and on a cluster a note explaining that the figure covers one node. Measured on a real 3-master Redis 7.4 cluster (100 / 92 / 108).
 - **`undo apply` replays against the target the original write ran on.** It dispatched the inverse against whatever target the *caller* named — in practice the config's first entry — while the write's own target sat unused in the undo record. On a multi-target config the inverse therefore ran against the wrong host; it only looks harmless because the resource usually is not there, but two hosts holding the same name and the inverse **succeeds on the wrong one, silently**. An explicitly named target still wins. Line-wide: all 24 copies had the identical defect. Caught live in container-host-aiops, where a stop recorded against a Podman target replayed against a Portainer one.
 
 ## v0.5.0 — 2026-08-02

@@ -54,6 +54,10 @@ def _redis_overview(conn: Any) -> dict:
         "maxmemoryPolicy": mem.get("maxmemoryPolicy"),
         "fragmentationRatio": mem.get("fragmentationRatio"),
         "totalKeys": keys.get("totalKeys"),
+        # On a cluster node totalKeys covers this node's slots only — the scope
+        # marker has to travel with the number, not be left in a sibling call.
+        "keyScope": keys.get("scope"),
+        "clusterMode": keys.get("clusterMode"),
         "errors": errors,
     }
 

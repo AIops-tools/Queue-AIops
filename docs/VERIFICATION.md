@@ -29,6 +29,13 @@ plus a regression test that asserts the *type*, keeping genuine ratios
 
 - **RabbitMQ** — the entire `rabbitmq` command group and its management-API
   shapes are unit-tested only. This is now the largest gap in this repo.
-- Redis **cluster / sentinel** topologies (only standalone was exercised).
+- ~~Redis **cluster / sentinel** topologies (only standalone was exercised).~~
+  **Both exercised 2026-08-03**, and the cluster one found a defect: a node's
+  `totalKeys` was reported as the dataset total (100 on a 3-master cluster
+  holding 300). Reads, `overview` and the RCAs otherwise behaved correctly on a
+  cluster node, on a Sentinel-fronted primary, and on its replica (`role:
+  slave`). Still untested: an actual **failover** through Sentinel, and any
+  cluster-wide aggregate — this tool talks to one endpoint by design, which is
+  exactly why the scope marker matters.
 - AUTH-enabled Redis and TLS connections.
 - `kill-client` against a real blocked client.
