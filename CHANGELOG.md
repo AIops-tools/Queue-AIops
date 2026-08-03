@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 — 2026-08-03
 
 ### Fixed
 - **A cluster node's key count no longer poses as the whole dataset.** `INFO keyspace` on a Redis Cluster node answers for that node's slots only, so `keyspace` / `overview` reported `totalKeys: 100` for a 3-master cluster actually holding 300 — a dataset-wide claim wrong by the shard count, with nothing in the payload to say otherwise. Both now carry `scope` (`node` vs `server`), `clusterMode`, and on a cluster a note explaining that the figure covers one node. Measured on a real 3-master Redis 7.4 cluster (100 / 92 / 108).
