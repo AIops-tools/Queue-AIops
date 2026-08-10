@@ -239,3 +239,56 @@ def test_manager_unknown_target_teaches_available(fake_build):
     mgr = ConnectionManager(_cfg())
     with pytest.raises(KeyError, match="Available: cache1, broker1"):
         mgr.connect("ghost")
+
+
+@pytest.mark.unit
+def test_rabbitmq_accept_header_keeps_a_wildcard_for_no_content_endpoints(monkeypatch):
+    """Accept must not be JSON-only, or the purge endpoint 406s.
+
+    Measured on a real RabbitMQ 3.13.7: ``DELETE /api/queues/{vhost}/{name}
+    /contents`` answers 204 with no body and offers no JSON representation, so
+    a bare ``Accept: application/json`` fails content negotiation and the broker
+    returns **406 with an empty body** — meaning ``purge_queue`` could never
+    succeed against a real server. Adding ``*/*`` returns 204, and every other
+    endpoint (GETs, PUT declare, DELETE queue, DELETE policy) answers the same
+    either way; that was enumerated against the live broker, not assumed.
+
+    Nothing else pins this header, which is why the defect survived: the fake
+    HTTP client in the unit suite never negotiates content.
+    """
+    monkeypatch.setenv("QUEUE_BROKER1_SECRET", "pw")
+    client = QueueConnection._build_client(rabbit_target())
+    try:
+        accept = client.headers["accept"]
+    finally:
+        client.close()
+    assert "application/json" in accept
+    assert "*/*" in accept, (
+        "purge (DELETE .../contents) 406s when Accept is JSON-only — keep */*"
+    )
+
+
+@pytest.mark.unit
+def test_rabbitmq_406_explains_content_negotiation():
+    """A 406 carries no body, so the generic branch explained nothing.
+
+    Encountered live while purge_queue was failing: the operator got
+    "RabbitMQ management API API error (406) on /api/queues/%2F/q/contents. "
+    — a doubled word and zero diagnosis. The 406 branch now names the cause,
+    and the generic branch no longer repeats "API" after a label ending in it.
+    """
+    conn = rabbit_conn({("GET", "/api/x"): FakeResponse(406, text="")})
+    with pytest.raises(QueueApiError) as err:
+        conn.get("/api/x")
+    msg = str(err.value)
+    assert "Content negotiation failed (406)" in msg
+    assert "Accept" in msg
+    assert "API API error" not in msg
+
+
+@pytest.mark.unit
+def test_rabbitmq_unmapped_status_does_not_double_the_word_api():
+    conn = rabbit_conn({("GET", "/api/x"): FakeResponse(418, text="teapot")})
+    with pytest.raises(QueueApiError) as err:
+        conn.get("/api/x")
+    assert "API API error" not in str(err.value)

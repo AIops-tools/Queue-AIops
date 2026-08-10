@@ -63,12 +63,25 @@ def _teaching_message(status: int, path: str, body: str, label: str) -> str:
             f"Bad request (400) on {label} {path}. The broker rejected the "
             f"request — check required fields and value formats. {snippet}"
         )
+    if status == 406:
+        # Content negotiation, and the broker sends NO body with it — so the
+        # generic branch produced a message that explained nothing at all
+        # (measured while purge_queue was failing on RabbitMQ 3.13.7).
+        return (
+            f"Content negotiation failed (406) on {label} {path}. The endpoint "
+            f"has no representation matching the request's Accept header — "
+            f"endpoints that answer '204 No Content' need '*/*' in Accept, not "
+            f"'application/json' alone. The broker sends no body with a 406, so "
+            f"there is nothing further to quote. {snippet}"
+        ).strip()
     if status in (500, 502, 503, 504):
         return (
             f"{label} server error ({status}) on {path}. The broker may be "
             f"busy; retry shortly. {snippet}"
         )
-    return f"{label} API error ({status}) on {path}. {snippet}"
+    # `label` already ends in "API" for rabbitmq ("RabbitMQ management API"),
+    # so the old "{label} API error" read "…management API API error".
+    return f"{label} error ({status}) on {path}. {snippet}".strip()
 
 
 class QueueConnection:
@@ -102,7 +115,19 @@ class QueueConnection:
             verify=target.verify_ssl,
             timeout=_TIMEOUT,
             auth=httpx.BasicAuth(target.username, target.secret),
-            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            # `*/*` must stay in Accept. RabbitMQ's purge endpoint
+            # (DELETE /api/queues/{vhost}/{name}/contents) answers 204 with no
+            # body and offers no JSON representation, so a bare
+            # "Accept: application/json" fails content negotiation and the
+            # server returns **406 with an empty body** — measured on 3.13.7.
+            # purge_queue could therefore never succeed against a real broker.
+            # Every other endpoint (GETs, PUT declare, DELETE queue, DELETE
+            # policy) behaves identically under either value; enumerated, not
+            # assumed.
+            headers={
+                "Accept": "application/json, */*",
+                "Content-Type": "application/json",
+            },
         )
 
     @property

@@ -21,14 +21,46 @@ Exercised end-to-end against a real **Redis 7.4.9** server (Docker) seeded with
 rendered as floats — `202.0` keys, `1.0` connected clients, float byte counts —
 because they were routed through `num()`. Values were arithmetically right but
 semantically wrong, and equality assertions could not catch it
-(`202 == 202.0`). Fixed with `as_int()` across the Redis and RabbitMQ reads,
-plus a regression test that asserts the *type*, keeping genuine ratios
-(`hitRatePct`, `usedPctOfMax`, `opsPerSec`) as floats.
+(`202 == 202.0`). Fixed with `as_int()` plus a regression test that asserts the
+*type*, keeping genuine ratios (`hitRatePct`, `usedPctOfMax`, `opsPerSec`) as
+floats. ⚠️ That round's claim of a fix "across the Redis and RabbitMQ reads"
+was **overstated**: the 2026-08-04 RabbitMQ run found `memUsedBytes` /
+`memLimitBytes` and the per-peer `channels` count still floats, and an earlier
+2026-08-03 round found the whole *write* path untouched. The sweep was never as
+wide as the sentence claimed — treat "fixed line-wide" claims as needing their
+own enumeration.
 
 ## Not yet live-verified ⚠️
 
-- **RabbitMQ** — the entire `rabbitmq` command group and its management-API
-  shapes are unit-tested only. This is now the largest gap in this repo.
+- ~~**RabbitMQ** — the entire `rabbitmq` command group and its management-API
+  shapes are unit-tested only. This is now the largest gap in this repo.~~
+  **Closed 2026-08-04 against a real RabbitMQ 3.13.7** (management plugin), with
+  a seeded estate: 3 queues, a real backlog, a live pika consumer holding a
+  connection/channel, and a policy.
+  - All 7 reads cross-checked against `rabbitmqctl` / `rabbitmqadmin`:
+    `overview` (33 ready messages, cluster name, node count), `queues`
+    (per-queue counts and durability exact), `queue` detail, `connections`,
+    `channels` (unacked and consumer counts), `policies`, `nodes`.
+  - All 5 writes exercised end-to-end with their undo: `declare-queue` →
+    `undo_apply` deleted it; `set-policy` → `undo_apply` removed it leaving the
+    pre-existing policy untouched; `delete-queue` → `undo_apply` re-declared it
+    with the captured `durable=false`; `purge` destroyed a real 9-message
+    backlog and correctly recorded **no** undo.
+  - 🔴 **`purge_queue` had never worked against a real broker.** The HTTP client
+    sent `Accept: application/json`, and RabbitMQ's purge endpoint
+    (`DELETE /api/queues/{vhost}/{name}/contents`) answers *204 No Content* with
+    no JSON representation, so content negotiation failed and the broker
+    returned **406 with an empty body** — every purge, on every server. The
+    other endpoints were enumerated against the live broker and behave
+    identically under either Accept value, so the fix is `application/json, */*`.
+    The 406 message was also useless (no body to quote, and the label already
+    ended in "API" so it read "…management API API error"); both fixed.
+  - 🔴 Two integer quantities rendered as floats (bug class #2): a node's
+    `memUsedBytes` / `memLimitBytes` (`161222656.0` sitting next to an integer
+    `diskFreeBytes` — one payload disagreeing with itself), and the per-peer
+    `channels` count (`1.0` for one channel, from a `0.0` accumulator seed).
+  - Still untested: clustered RabbitMQ, quorum/stream queues, and TLS (AMQPS /
+    HTTPS management).
 - ~~Redis **cluster / sentinel** topologies (only standalone was exercised).~~
   **Both exercised 2026-08-03**, and the cluster one found a defect: a node's
   `totalKeys` was reported as the dataset total (100 on a 3-master cluster

@@ -132,7 +132,9 @@ def list_connections(conn: Any) -> dict:
         by_host: dict[str, dict] = {}
         for r in rows:
             bucket = by_host.setdefault(
-                r["peerHost"], {"peerHost": r["peerHost"], "connections": 0, "channels": 0.0}
+                # A channel count seeded as 0.0 makes the whole sum a float —
+                # "1.0 channels" for one channel. Both members are counts.
+                r["peerHost"], {"peerHost": r["peerHost"], "connections": 0, "channels": 0}
             )
             bucket["connections"] += 1
             bucket["channels"] += r["channels"]
@@ -211,8 +213,12 @@ def node_health(conn: Any) -> dict:
     try:
         rows = []
         for n in conn.platform.rows(conn.get(conn.platform.path("nodes"))):
-            mem_used = num(n.get("mem_used"))
-            mem_limit = num(n.get("mem_limit"))
+            # Byte counts, not ratios — every sibling byte field below already
+            # used as_int, so routing these two through the float helper made a
+            # single payload disagree with itself (memUsedBytes 161222656.0
+            # next to diskFreeBytes 36616110080).
+            mem_used = as_int(n.get("mem_used"))
+            mem_limit = as_int(n.get("mem_limit"))
             rows.append(
                 {
                     "name": opt(n.get("name"), 64),

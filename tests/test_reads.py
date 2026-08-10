@@ -239,6 +239,9 @@ def test_list_connections_groups_by_peer_host():
     assert out["total"] == 3
     assert out["byPeerHost"][0]["peerHost"] == "10.0.0.7"
     assert out["byPeerHost"][0]["channels"] == 4
+    # A channel count, not a rate: seeding the accumulator at 0.0 rendered one
+    # channel as "1.0" on a live broker. Equality cannot catch it (4 == 4.0).
+    assert isinstance(out["byPeerHost"][0]["channels"], int)
 
 
 @pytest.mark.unit
@@ -274,6 +277,12 @@ def test_node_health_flags_alarms():
     out = rabbit_reads.node_health(conn)
     assert out["alarms"] == 1
     assert out["nodes"][0]["memAlarm"] is True
+    # Byte counts stay integers. On a live broker these two came back as
+    # 161222656.0 / 13462616473.0 while diskFreeBytes beside them was an int —
+    # one payload disagreeing with itself (bug class #2).
+    node = out["nodes"][0]
+    for field in ("memUsedBytes", "memLimitBytes", "diskFreeBytes"):
+        assert isinstance(node[field], int), field
 
 
 @pytest.mark.unit
