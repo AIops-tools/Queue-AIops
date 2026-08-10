@@ -10,6 +10,7 @@ import typer
 from queue_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    checked,
     cli_errors,
     console,
     double_confirm,
@@ -138,7 +139,7 @@ def redis_config_set(
         return
     double_confirm("set config parameter", parameter)
     console.print_json(
-        json.dumps(gov.redis_config_set(parameter=parameter, value=value, target=target))
+        json.dumps(checked(gov.redis_config_set(parameter=parameter, value=value, target=target)))
     )
 
 
@@ -165,5 +166,5 @@ def redis_kill_client(
         return
     double_confirm("kill client", who or "(unspecified)")
     console.print_json(
-        json.dumps(gov.redis_kill_client(client_id=client_id, addr=addr, target=target))
+        json.dumps(checked(gov.redis_kill_client(client_id=client_id, addr=addr, target=target)))
     )

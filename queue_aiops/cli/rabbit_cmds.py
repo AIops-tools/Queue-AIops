@@ -10,6 +10,7 @@ import typer
 from queue_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    checked,
     cli_errors,
     console,
     double_confirm,
@@ -157,7 +158,7 @@ def rabbit_purge(
             parameters={"vhost": vhost, "name": name})
         return
     double_confirm("purge queue", name)
-    console.print_json(json.dumps(gov.purge_queue(vhost=vhost, name=name, target=target)))
+    console.print_json(json.dumps(checked(gov.purge_queue(vhost=vhost, name=name, target=target))))
 
 
 @rabbitmq_app.command("delete-queue")
@@ -180,7 +181,7 @@ def rabbit_delete_queue(
             parameters={"vhost": vhost, "name": name})
         return
     double_confirm("delete queue", name)
-    console.print_json(json.dumps(gov.delete_queue(vhost=vhost, name=name, target=target)))
+    console.print_json(json.dumps(checked(gov.delete_queue(vhost=vhost, name=name, target=target))))
 
 
 @rabbitmq_app.command("declare-queue")
@@ -211,9 +212,9 @@ def rabbit_declare_queue(
                         "auto_delete": auto_delete})
         return
     double_confirm("declare queue", name)
-    console.print_json(json.dumps(gov.declare_queue(
+    console.print_json(json.dumps(checked(gov.declare_queue(
         vhost=vhost, name=name, durable=durable, auto_delete=auto_delete, target=target
-    )))
+    ))))
 
 
 @rabbitmq_app.command("set-policy")
@@ -252,10 +253,10 @@ def rabbit_set_policy(
                         "apply_to": apply_to})
         return
     double_confirm("set policy", name)
-    console.print_json(json.dumps(gov.set_policy(
+    console.print_json(json.dumps(checked(gov.set_policy(
         vhost=vhost, name=name, pattern=pattern, definition=definition_obj,
         priority=priority, apply_to=apply_to, target=target,
-    )))
+    ))))
 
 
 @rabbitmq_app.command("delete-policy")
@@ -278,4 +279,6 @@ def rabbit_delete_policy(
             parameters={"vhost": vhost, "name": name})
         return
     double_confirm("delete policy", name)
-    console.print_json(json.dumps(gov.delete_policy(vhost=vhost, name=name, target=target)))
+    console.print_json(
+        json.dumps(checked(gov.delete_policy(vhost=vhost, name=name, target=target)))
+    )
