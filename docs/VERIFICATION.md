@@ -24,7 +24,7 @@ semantically wrong, and equality assertions could not catch it
 (`202 == 202.0`). Fixed with `as_int()` plus a regression test that asserts the
 *type*, keeping genuine ratios (`hitRatePct`, `usedPctOfMax`, `opsPerSec`) as
 floats. ⚠️ That round's claim of a fix "across the Redis and RabbitMQ reads"
-was **overstated**: the 2026-08-04 RabbitMQ run found `memUsedBytes` /
+was **overstated**: the 2026-08-10 RabbitMQ run found `memUsedBytes` /
 `memLimitBytes` and the per-peer `channels` count still floats, and an earlier
 2026-08-03 round found the whole *write* path untouched. The sweep was never as
 wide as the sentence claimed — treat "fixed line-wide" claims as needing their
@@ -34,7 +34,7 @@ own enumeration.
 
 - ~~**RabbitMQ** — the entire `rabbitmq` command group and its management-API
   shapes are unit-tested only. This is now the largest gap in this repo.~~
-  **Closed 2026-08-04 against a real RabbitMQ 3.13.7** (management plugin), with
+  **Closed 2026-08-10 against a real RabbitMQ 3.13.7** (management plugin), with
   a seeded estate: 3 queues, a real backlog, a live pika consumer holding a
   connection/channel, and a policy.
   - All 7 reads cross-checked against `rabbitmqctl` / `rabbitmqadmin`:

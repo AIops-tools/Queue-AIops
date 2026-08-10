@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.7.0 — 2026-08-10
 
 ### Fixed
 - **`purge_queue` could never have worked against a real RabbitMQ.** The management-API client sent `Accept: application/json`, but the purge endpoint (`DELETE /api/queues/{vhost}/{name}/contents`) answers *204 No Content* and offers no JSON representation, so content negotiation failed and the broker returned **406 with an empty body** — on every purge, on every server. Accept is now `application/json, */*`; every other endpoint (GETs, PUT declare, DELETE queue, DELETE policy) was enumerated against a live broker and behaves identically either way. Verified on RabbitMQ 3.13.7 by purging a real 9-message backlog.
