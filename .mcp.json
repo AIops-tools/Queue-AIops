@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "queue-aiops": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "queue-aiops==0.8.0",
+        "queue-aiops-mcp"
+      ]
+    }
+  }
+}
