@@ -1,0 +1,20 @@
+{
+  "name": "@aiops-tools/queue-aiops",
+  "version": "0.9.0",
+  "description": "Governed redis + rabbitmq ops: memory/latency/backlog/churn RCA, policies. 28 tools.",
+  "private": true,
+  "license": "MIT",
+  "homepage": "https://github.com/AIops-tools/Queue-AIops",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AIops-tools/Queue-AIops.git"
+  },
+  "openclaw": {
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2"
+    },
+    "build": {
+      "openclawVersion": "2026.3.24-beta.2"
+    }
+  }
+}

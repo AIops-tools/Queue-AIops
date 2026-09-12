@@ -1,0 +1,24 @@
+{
+  "id": "queue-aiops",
+  "name": "Queue AIops",
+  "description": "Governed redis + rabbitmq ops: memory/latency/backlog/churn RCA, policies. 28 tools.",
+  "skills": [
+    "./skills"
+  ],
+  "mcpServers": {
+    "queue-aiops": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "queue-aiops==0.9.0",
+        "queue-aiops-mcp"
+      ]
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

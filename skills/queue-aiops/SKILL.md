@@ -17,7 +17,7 @@ installer:
 argument-hint: "[a queue/key/client id, or describe your cache/broker task]"
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["QUEUE_AIOPS_CONFIG"],"bins":["queue-aiops"],"config":["~/.queue-aiops/config.yaml","~/.queue-aiops/secrets.enc"]},"optional":{"env":["QUEUE_AIOPS_MASTER_PASSWORD"]},"primaryEnv":"QUEUE_AIOPS_CONFIG","homepage":"https://github.com/AIops-tools/Queue-AIops","emoji":"📬","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"anyBins":["queue-aiops","uvx"]},"optional":{"env":["QUEUE_AIOPS_CONFIG","QUEUE_AIOPS_MASTER_PASSWORD"]},"homepage":"https://github.com/AIops-tools/Queue-AIops","emoji":"📬","os":["macos","linux"]}}
 compatibility: >
   Standalone, self-governed broker operations across redis (RESP wire protocol via the redis Python client; password optional — auth-less lab instances are supported — TLS optional) and rabbitmq (management HTTP API /api/..., HTTP Basic auth with a monitoring/management-tagged user). Each target in the config names its own platform, and a name-keyed platform registry selects the protocol shape, so one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.queue-aiops/ (relocatable via QUEUE_AIOPS_HOME).
