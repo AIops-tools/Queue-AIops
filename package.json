@@ -1,6 +1,6 @@
 {
   "name": "@aiops-tools/queue-aiops",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "description": "Governed redis + rabbitmq ops: memory/latency/backlog/churn RCA, policies. 28 tools.",
   "private": true,
   "license": "MIT",
