@@ -36,6 +36,19 @@ The MCP server is fetched with [uv](https://docs.astral.sh/uv/) and pinned to th
 package version this plugin declares, so an audit row can be traced back to the
 code that wrote it. Credentials are still configured with `queue-aiops init` — see below.
 
+### As an OpenClaw plugin
+
+The same bundle is published on [ClawHub](https://clawhub.ai/plugins), where one
+install delivers the skill and its MCP server together:
+
+```bash
+openclaw plugins install clawhub:@aiops-tools/queue-aiops
+openclaw skills info queue-aiops          # expect: Visible to model: yes
+```
+
+Restart the OpenClaw gateway afterwards so it loads the plugin. Credentials are
+configured exactly as below.
+
 ### As a CLI or standalone MCP server
 
 ```bash
