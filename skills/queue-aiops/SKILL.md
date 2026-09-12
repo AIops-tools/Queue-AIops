@@ -78,7 +78,7 @@ queue-aiops doctor
 Or as an OpenClaw plugin, which installs this skill and its MCP server together:
 
 ```bash
-openclaw plugins install clawhub:@aiops-tools/queue-aiops
+openclaw plugins install clawhub:@zw008/queue-aiops
 openclaw skills info queue-aiops          # expect: Visible to model: yes
 ```
 
