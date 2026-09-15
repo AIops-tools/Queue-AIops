@@ -10,6 +10,7 @@ import typer
 from queue_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    audited,
     checked,
     cli_errors,
     console,
@@ -32,6 +33,7 @@ VhostOption = Annotated[
 
 @rabbitmq_app.command("overview")
 @cli_errors
+@audited
 def rabbit_overview(target: TargetOption = None) -> None:
     """Broker identity + totals (queues, messages, connections, rates)."""
     from queue_aiops.ops import rabbit_reads as ops
@@ -42,6 +44,7 @@ def rabbit_overview(target: TargetOption = None) -> None:
 
 @rabbitmq_app.command("queues")
 @cli_errors
+@audited
 def rabbit_queues(
     vhost: Annotated[
         str | None, typer.Option("--vhost", help="Restrict to one vhost")
@@ -63,6 +66,7 @@ def rabbit_queues(
 
 @rabbitmq_app.command("queue")
 @cli_errors
+@audited
 def rabbit_queue(
     name: Annotated[str, typer.Argument(help="Queue name (from 'queues')")],
     vhost: VhostOption = "/",
@@ -77,6 +81,7 @@ def rabbit_queue(
 
 @rabbitmq_app.command("connections")
 @cli_errors
+@audited
 def rabbit_connections(target: TargetOption = None) -> None:
     """Client connections grouped by peer host."""
     from queue_aiops.ops import rabbit_reads as ops
@@ -93,6 +98,7 @@ def rabbit_connections(target: TargetOption = None) -> None:
 
 @rabbitmq_app.command("channels")
 @cli_errors
+@audited
 def rabbit_channels(target: TargetOption = None) -> None:
     """Channels with unacked/prefetch pressure."""
     from queue_aiops.ops import rabbit_reads as ops
@@ -109,6 +115,7 @@ def rabbit_channels(target: TargetOption = None) -> None:
 
 @rabbitmq_app.command("policies")
 @cli_errors
+@audited
 def rabbit_policies(
     vhost: Annotated[
         str | None, typer.Option("--vhost", help="Restrict to one vhost")
@@ -130,6 +137,7 @@ def rabbit_policies(
 
 @rabbitmq_app.command("nodes")
 @cli_errors
+@audited
 def rabbit_nodes(target: TargetOption = None) -> None:
     """Node memory/disk/fd posture + watermark alarms."""
     from queue_aiops.ops import rabbit_reads as ops

@@ -7,7 +7,7 @@ from typing import Annotated
 
 import typer
 
-from queue_aiops.cli._common import TargetOption, cli_errors, console, get_connection
+from queue_aiops.cli._common import TargetOption, audited, cli_errors, console, get_connection
 
 analyze_app = typer.Typer(
     name="analyze",
@@ -19,6 +19,7 @@ analyze_app = typer.Typer(
 
 @analyze_app.command("memory")
 @cli_errors
+@audited
 def analyze_memory(
     used_pct: Annotated[
         float, typer.Option("--used-pct", help="used/maxmemory %% pressure threshold")
@@ -41,6 +42,7 @@ def analyze_memory(
 
 @analyze_app.command("latency")
 @cli_errors
+@audited
 def analyze_latency(
     slow_us: Annotated[
         float, typer.Option("--slow-us", help="Slowlog threshold in microseconds")
@@ -57,6 +59,7 @@ def analyze_latency(
 
 @analyze_app.command("backlog")
 @cli_errors
+@audited
 def analyze_backlog(
     vhost: Annotated[
         str | None, typer.Option("--vhost", help="Restrict to one vhost")
@@ -76,6 +79,7 @@ def analyze_backlog(
 
 @analyze_app.command("churn")
 @cli_errors
+@audited
 def analyze_churn(target: TargetOption = None) -> None:
     """Connection-churn analysis (both platforms): counts, rates, by source."""
     from queue_aiops.ops import analysis as ops

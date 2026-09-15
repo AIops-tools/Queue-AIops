@@ -10,6 +10,7 @@ import typer
 from queue_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    audited,
     checked,
     cli_errors,
     console,
@@ -28,6 +29,7 @@ redis_app = typer.Typer(
 
 @redis_app.command("info")
 @cli_errors
+@audited
 def redis_info(target: TargetOption = None) -> None:
     """Server identity + health basics (version, role, clients, ops/sec)."""
     from queue_aiops.ops import redis_reads as ops
@@ -38,6 +40,7 @@ def redis_info(target: TargetOption = None) -> None:
 
 @redis_app.command("memory")
 @cli_errors
+@audited
 def redis_memory(target: TargetOption = None) -> None:
     """Memory posture: used vs maxmemory, policy, fragmentation."""
     from queue_aiops.ops import redis_reads as ops
@@ -48,6 +51,7 @@ def redis_memory(target: TargetOption = None) -> None:
 
 @redis_app.command("clients")
 @cli_errors
+@audited
 def redis_clients(target: TargetOption = None) -> None:
     """Connected clients grouped by source address."""
     from queue_aiops.ops import redis_reads as ops
@@ -64,6 +68,7 @@ def redis_clients(target: TargetOption = None) -> None:
 
 @redis_app.command("slowlog")
 @cli_errors
+@audited
 def redis_slowlog(
     count: Annotated[int, typer.Option("--count", "-n", help="Max entries")] = 128,
     target: TargetOption = None,
@@ -83,6 +88,7 @@ def redis_slowlog(
 
 @redis_app.command("config-get")
 @cli_errors
+@audited
 def redis_config_get(
     pattern: Annotated[str, typer.Argument(help="Config-name glob, e.g. 'maxmemory*'")] = "*",
     target: TargetOption = None,
@@ -96,6 +102,7 @@ def redis_config_get(
 
 @redis_app.command("keyspace")
 @cli_errors
+@audited
 def redis_keyspace(target: TargetOption = None) -> None:
     """Per-db key counts and expiry coverage."""
     from queue_aiops.ops import redis_reads as ops
@@ -106,6 +113,7 @@ def redis_keyspace(target: TargetOption = None) -> None:
 
 @redis_app.command("bigkeys")
 @cli_errors
+@audited
 def redis_bigkeys(
     top: Annotated[int, typer.Option("--top", help="Rows to return, largest first")] = 20,
     target: TargetOption = None,
