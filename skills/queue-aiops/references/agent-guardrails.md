@@ -31,7 +31,7 @@ What the tool *does* guarantee is that you can always see what happened:
 |---|---|
 | "Don't invent a value when a field is missing" | RabbitMQ omits `idle_since` for an active queue; a Redis primary reports no `master_link_status`; an unnamed client has no name. Those come back as `null`, never as `""`. |
 | "Tell me if the output was cut off" | `redis_slowlog`, `redis_clients`, `redis_big_keys`, `list_queues`, `list_connections`, `list_channels` and `list_policies` all return `{"<items>": [...], "returned": N, "limit": L, "truncated": true/false}`. Truncation is measured — one extra entry is requested from Redis — not guessed from a length coincidence. |
-| "Preserve the ordering / tell me what's most urgent" | `rabbitmq_queue_backlog_rca`, `redis_memory_pressure_rca`, `redis_latency_rca` and `connection_churn_analysis` rank findings worst-first, each carrying the measured number it was based on. Priority is in the payload, not implied by list position. |
+| "Make it show the number it judged on" | Every finding from `rabbitmq_queue_backlog_rca`, `redis_memory_pressure_rca`, `redis_latency_rca` and `connection_churn_analysis` carries the measured value it was based on under `evidence`, so a claim can always be checked against a number rather than taken on the model's word. |
 | "Don't run KEYS * on production" | `redis_big_keys` uses SCAN under a hard key budget and sizes only an evenly-spaced subset with MEMORY USAGE. There is no code path that can issue `KEYS *`. `coveragePct` reports how partial the walk was. |
 | "Confirm before anything destructive" | `delete_queue` and `purge_queue` require a `--dry-run`-able preview plus double confirmation at the CLI. |
 | "Log what you did" | Every governed call is audited to `~/.queue-aiops/audit.db` regardless of what the model says it did — and the CLI writes the same row the MCP path does, so there is no unaudited entry point. |
@@ -40,6 +40,14 @@ What the tool *does* guarantee is that you can always see what happened:
 ## What still needs a prompt
 
 These are model-behaviour problems the harness cannot fix from the outside.
+
+⚠️ **Finding order is not priority.** These RCAs append findings in the order the checks
+run, not worst-first, and there is no `rank` key in the payload. A broker at 12 % of
+`maxmemory` with 35 GiB of oversized keys reports the fragmentation finding first purely
+because fragmentation is checked before big keys. Do not let the model treat `findings[0]`
+as the headline — make it weigh every finding's `evidence` and say which one it acted on.
+(Earlier versions of this file claimed these lists were ranked worst-first. They never were.)
+
 Copy this into your agent's system prompt:
 
 ```text

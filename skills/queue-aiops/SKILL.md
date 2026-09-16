@@ -121,8 +121,8 @@ skill.
    works before you read numbers off it.
 2. `queue-aiops redis memory` → used vs `maxmemory`, the eviction policy in force, and
    the fragmentation ratio, straight from `INFO memory`.
-3. `queue-aiops analyze memory --used-pct 85` → ranked findings, each citing its measured
-   number: **noeviction near the limit** (the dangerous one — writes will start failing
+3. `queue-aiops analyze memory --used-pct 85` → findings in check order, each citing its measured
+   number (order is not severity — weigh them all): **noeviction near the limit** (the dangerous one — writes will start failing
    with OOM rather than evicting), active eviction in progress, fragmentation versus real
    swapping, and oversized keys.
 4. `queue-aiops redis bigkeys --count 500` → a SCAN-budgeted sample of the largest keys,

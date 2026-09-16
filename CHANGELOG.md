@@ -8,8 +8,19 @@
   within thresholds". The flag is behaviourally unchanged, but rewording that
   sentence — or normalising its em dash in a style sweep — would have reported
   pressure on a healthy broker. It now reads the measured condition captured
-  before the healthy placeholder is appended, and a structural test keeps any
-  finding's display text from becoming a rule's input again.
+  before the healthy placeholder is appended, and an AST-based structural test
+  pins the whole package against a decision being taken on a finding's prose —
+  either operand order, the literal hoisted into a constant, `.get()`, `in`,
+  `startswith`, slicing and `.lower()` are all rejected.
+- `agent-guardrails.md` and `SKILL.md` claimed the four RCAs "rank findings
+  worst-first" and that "priority is in the payload, not implied by list
+  position". Neither was ever true here: there is no `rank` key, and findings are
+  appended in the order the checks run. The claim sat in the table headed "what
+  the tool enforces — do not waste prompt budget on these", so it actively told
+  operators to drop the prompt that would have compensated. A broker at 12 % of
+  `maxmemory` with 35 GiB of oversized keys reports the fragmentation finding
+  first, purely because fragmentation is checked earlier. The docs now say order
+  is not severity, and point at the `evidence` number each finding does carry.
 
 ## v0.9.3 — 2026-09-15
 

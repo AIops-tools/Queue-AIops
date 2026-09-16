@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import re
+import ast
 from pathlib import Path
 
 import pytest
@@ -206,10 +206,65 @@ def test_churn_healthy_reports_metrics():
 
 
 @pytest.mark.unit
-def test_no_finding_flag_is_derived_from_another_findings_prose():
-    """A rule's input is never another rule's display text. `pressure` used to be
-    `any(f["cause"] != "Healthy — within thresholds" ...)`, so rewording that sentence —
-    or normalising its em dash — would have reported pressure on a healthy broker."""
-    source = Path(ops.__file__).read_text(encoding="utf-8")
-    offenders = re.findall(r'\["(?:cause|action|signal)"\]\s*(?:==|!=)\s*["\']', source)
-    assert offenders == []
+def test_no_decision_is_derived_from_a_findings_display_text():
+    """A rule's input is never another rule's display text.
+
+    `pressure` used to be `any(f["cause"] != "Healthy — within thresholds" ...)`, so
+    rewording that sentence — or normalising its em dash in a style sweep — would have
+    reported pressure on a healthy broker. The check is AST-based on purpose: a regex on
+    the source missed the shape that produced the original incident in another repo
+    (`"critical blocker" in f["signal"]`, literal on the left), and also fired on prose
+    inside comments and docstrings. Walking the tree catches either operand order, the
+    literal hoisted into a constant, `.get()`, `.lower()`, slicing and `startswith`, and
+    ignores comments entirely.
+    """
+    offenders = []
+    for path in _scanned_sources():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Compare):
+                operands = [node.left, *node.comparators]
+                if any(_reads_display_text(o) for o in operands) and not _is_none_check(node):
+                    offenders.append(f"{path.name}:{node.lineno}: {ast.unparse(node)}")
+            elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                    and node.func.attr in _TEXT_PREDICATES and _reads_display_text(node.func.value):
+                offenders.append(f"{path.name}:{node.lineno}: {ast.unparse(node)}")
+    assert offenders == [], ("a decision is being derived from a finding's prose:\n"
+                             + "\n".join(offenders))
+
+
+_DISPLAY_KEYS = {"cause", "action", "signal", "note", "summary"}
+_TEXT_PREDICATES = {"startswith", "endswith", "count", "find", "index"}
+
+
+def _scanned_sources():
+    """Every module that could post-process a finding — not just the one that builds them.
+
+    `governance/` is excluded: it is vendored verbatim across the line and held byte-identical
+    by the drift gate, so it is not this repo's to edit.
+    """
+    root = Path(ops.__file__).parents[2]
+    found = sorted(root.glob("queue_aiops/**/*.py")) + sorted(root.glob("mcp_server/**/*.py"))
+    files = [p for p in found if "governance" not in p.parts]
+    assert len(files) > 10, f"source sweep found only {len(files)} modules — the glob is wrong"
+    return files
+
+
+def _reads_display_text(node):
+    """True if evaluating this expression reads a finding's display field, however wrapped."""
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Subscript) and isinstance(sub.slice, ast.Constant) \
+                and sub.slice.value in _DISPLAY_KEYS:
+            return True
+        if isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute) \
+                and sub.func.attr == "get" and sub.args \
+                and isinstance(sub.args[0], ast.Constant) \
+                and sub.args[0].value in _DISPLAY_KEYS:
+            return True
+    return False
+
+
+def _is_none_check(node):
+    """`f["cause"] is None` is a presence test, not a decision taken on the prose."""
+    return all(isinstance(op, (ast.Is, ast.IsNot)) for op in node.ops) and all(
+        isinstance(c, ast.Constant) and c.value is None for c in node.comparators)
