@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import pytest
 
 from queue_aiops.ops import analysis as ops
@@ -200,3 +203,13 @@ def test_churn_healthy_reports_metrics():
     })
     assert out["findings"][0]["action"] == "No action needed."
     assert out["metrics"]["channels"] == 8
+
+
+@pytest.mark.unit
+def test_no_finding_flag_is_derived_from_another_findings_prose():
+    """A rule's input is never another rule's display text. `pressure` used to be
+    `any(f["cause"] != "Healthy — within thresholds" ...)`, so rewording that sentence —
+    or normalising its em dash — would have reported pressure on a healthy broker."""
+    source = Path(ops.__file__).read_text(encoding="utf-8")
+    offenders = re.findall(r'\["(?:cause|action|signal)"\]\s*(?:==|!=)\s*["\']', source)
+    assert offenders == []

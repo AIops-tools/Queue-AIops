@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `redis_memory_pressure_rca`'s top-level `pressure` flag no longer decides by
+  comparing another finding's `cause` against the literal sentence "Healthy —
+  within thresholds". The flag is behaviourally unchanged, but rewording that
+  sentence — or normalising its em dash in a style sweep — would have reported
+  pressure on a healthy broker. It now reads the measured condition captured
+  before the healthy placeholder is appended, and a structural test keeps any
+  finding's display text from becoming a rule's input again.
+
 ## v0.9.3 — 2026-09-15
 
 ### Fixed

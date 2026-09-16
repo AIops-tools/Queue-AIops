@@ -126,6 +126,10 @@ def redis_memory_pressure_rca(
             "evidence": {"bigKeys": big[:10]},
         })
 
+    # Captured before the healthy placeholder is appended. The flag reports the measured
+    # condition — did any check fire — and is never derived from another finding's prose:
+    # a reworded sentence would otherwise report pressure on a healthy broker.
+    pressure = bool(findings)
     if not findings:
         findings.append({
             "cause": "Healthy — within thresholds",
@@ -133,7 +137,7 @@ def redis_memory_pressure_rca(
             "evidence": {"usedPctOfMax": used_of_max, "fragmentationRatio": frag},
         })
     return {
-        "pressure": any(f["cause"] != "Healthy — within thresholds" for f in findings),
+        "pressure": pressure,
         "usedPctOfMax": used_of_max,
         "maxmemoryPolicy": policy,
         "fragmentationRatio": frag,
