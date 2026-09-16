@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.9.4 — 2026-09-16
 
 ### Fixed
 - `redis_memory_pressure_rca`'s top-level `pressure` flag no longer decides by

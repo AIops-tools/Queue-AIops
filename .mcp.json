@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "queue-aiops==0.9.3",
+        "queue-aiops==0.9.4",
         "queue-aiops-mcp"
       ]
     }
