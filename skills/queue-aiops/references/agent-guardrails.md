@@ -48,7 +48,7 @@ because fragmentation is checked before big keys. Do not let the model treat `fi
 as the headline — make it weigh every finding's `evidence` and say which one it acted on.
 (Earlier versions of this file claimed these lists were ranked worst-first. They never were.)
 
-Copy this into your agent's system prompt:
+Recommended setup for a local model (adapt it to your agent client):
 
 ```text
 You operate a RabbitMQ broker or a Redis instance through the queue-aiops MCP
