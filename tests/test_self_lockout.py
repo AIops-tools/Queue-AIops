@@ -115,7 +115,7 @@ def test_self_lockout_is_a_valueerror():
 
 @pytest.mark.unit
 def test_dry_run_of_a_denylisted_parameter_is_refused(monkeypatch):
-    from mcp_server.tools import writes as t
+    from queue_aiops.mcp_server.tools import writes as t
 
     conn = redis_conn(config={"requirepass": "current-password"})
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)
@@ -130,7 +130,7 @@ def test_dry_run_of_a_denylisted_parameter_is_refused(monkeypatch):
 @pytest.mark.unit
 def test_dry_run_of_an_ordinary_parameter_still_previews(monkeypatch):
     """The dry-run guard must be exact, not a blanket refusal of every preview."""
-    from mcp_server.tools import writes as t
+    from queue_aiops.mcp_server.tools import writes as t
 
     conn = redis_conn(config={"maxmemory-policy": "noeviction"})
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)
@@ -159,8 +159,8 @@ def _cli_dry_run(monkeypatch, tmp_path, argv, conn):
     import queue_aiops.governance.audit as audit_mod
     import queue_aiops.governance.policy as policy_mod
     import queue_aiops.governance.undo as undo_mod
-    from mcp_server.tools import writes as gov
     from queue_aiops.cli import app
+    from queue_aiops.mcp_server.tools import writes as gov
 
     monkeypatch.setenv("QUEUE_AIOPS_HOME", str(tmp_path))
     audit_mod.reset_engine()
@@ -210,7 +210,7 @@ def test_the_refusal_reaches_the_agent_intact_through_the_mcp_layer(monkeypatch)
     than replaced — but it is truncated. The route back sits at the END of the
     message, so an over-long refusal loses exactly the part the caller acts on.
     """
-    from mcp_server.tools import writes as t
+    from queue_aiops.mcp_server.tools import writes as t
 
     conn = redis_conn(config={"requirepass": "current-password"})
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)

@@ -215,8 +215,8 @@ def test_delete_policy_captures_prior_and_teaches_when_missing():
 
 @pytest.mark.unit
 def test_governed_config_set_records_undo_token(monkeypatch):
-    from mcp_server.tools import writes as t
     from queue_aiops.governance.undo import get_undo_store
+    from queue_aiops.mcp_server.tools import writes as t
 
     conn = redis_conn(config={"maxmemory-policy": "noeviction"})
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)
@@ -238,8 +238,8 @@ def test_governed_delete_queue_undo_replays_through_declare_queue(monkeypatch):
     """THE replay test: delete_queue's recorded undo, fed back into the
     declare_queue tool with exactly its recorded params, must re-issue the PUT
     with the captured definition."""
-    from mcp_server.tools import writes as t
     from queue_aiops.governance.undo import get_undo_store
+    from queue_aiops.mcp_server.tools import writes as t
 
     conn = rabbit_conn({
         ("GET", "/api/queues/%2F/orders"): _Q,
@@ -267,8 +267,8 @@ def test_governed_delete_queue_undo_replays_through_declare_queue(monkeypatch):
 
 @pytest.mark.unit
 def test_governed_set_policy_undo_replays_prior_policy(monkeypatch):
-    from mcp_server.tools import writes as t
     from queue_aiops.governance.undo import get_undo_store
+    from queue_aiops.mcp_server.tools import writes as t
 
     conn = rabbit_conn({
         ("GET", "/api/policies/%2F/lim"): _POLICY,
@@ -287,7 +287,7 @@ def test_governed_set_policy_undo_replays_prior_policy(monkeypatch):
 
 @pytest.mark.unit
 def test_undo_descriptor_shapes_invert_correctly():
-    from mcp_server.tools import writes as t
+    from queue_aiops.mcp_server.tools import writes as t
 
     cfg = t._config_set_undo({"parameter": "maxmemory"}, {"priorState": {"value": "100mb"}})
     assert cfg["tool"] == "redis_config_set"
@@ -332,7 +332,7 @@ def test_undo_descriptor_shapes_invert_correctly():
 
 @pytest.mark.unit
 def test_write_risk_tiers():
-    from mcp_server.tools import writes as t
+    from queue_aiops.mcp_server.tools import writes as t
 
     assert t.purge_queue._risk_level == "high"
     assert t.delete_queue._risk_level == "high"
@@ -350,7 +350,7 @@ _REDIS_MUTATORS = {"config_set", "client_kill_filter"}
 @pytest.mark.unit
 def test_dry_run_previews_do_not_mutate(monkeypatch):
     """The invariant is: a dry_run MAY read, it must never WRITE."""
-    from mcp_server.tools import writes as t
+    from queue_aiops.mcp_server.tools import writes as t
 
     rconn = redis_conn(config={"maxmemory": "0"}, client_id=11)
     qconn = rabbit_conn({("GET", "/api/queues/%2F/orders"): _Q})
@@ -372,8 +372,8 @@ def test_dry_run_previews_do_not_mutate(monkeypatch):
 
 @pytest.mark.unit
 def test_irreversible_writes_record_no_undo(monkeypatch):
-    from mcp_server.tools import writes as t
     from queue_aiops.governance.undo import get_undo_store
+    from queue_aiops.mcp_server.tools import writes as t
 
     conn = rabbit_conn({
         ("GET", "/api/queues/%2F/orders"): _Q,

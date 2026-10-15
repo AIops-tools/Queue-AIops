@@ -87,7 +87,7 @@ background services.
 ## Static Analysis
 
 ```bash
-uvx bandit -r queue_aiops/ mcp_server/
+uvx bandit -r queue_aiops/
 uv run ruff check .
 ```
 

@@ -124,7 +124,7 @@ def test_real_write_tool_persists_priorstate_undo(gov_home, monkeypatch):
     """End-to-end through a REAL product write tool: redis_config_set must
     capture the parameter's prior value before setting and persist the
     restore-undo on disk."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
     from tests.fakes import redis_conn
 
     conn = redis_conn(config={"maxmemory-policy": "noeviction"})

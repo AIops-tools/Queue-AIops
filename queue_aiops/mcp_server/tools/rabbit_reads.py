@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from mcp_server._shared import _get_connection, mcp, tool_errors
 from queue_aiops.governance import governed_tool
+from queue_aiops.mcp_server._shared import _get_connection, mcp, tool_errors
 from queue_aiops.ops import rabbit_reads as ops
 
 

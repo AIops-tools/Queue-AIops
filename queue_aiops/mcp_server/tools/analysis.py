@@ -2,8 +2,8 @@
 
 from typing import Any, Optional
 
-from mcp_server._shared import _get_connection, mcp, tool_errors
 from queue_aiops.governance import governed_tool
+from queue_aiops.mcp_server._shared import _get_connection, mcp, tool_errors
 from queue_aiops.ops import analysis as ops
 from queue_aiops.ops._util import as_obj, num
 

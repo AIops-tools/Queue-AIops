@@ -1,7 +1,7 @@
 """CLI confirmed-write path — past dry-run, through governance, onto disk.
 
 The CLI write commands delegate real execution to the ``@governed_tool``
-functions in ``mcp_server.tools``. These tests drive ``redis config-set`` and
+functions in ``queue_aiops.mcp_server.tools``. These tests drive ``redis config-set`` and
 ``rabbitmq purge`` PAST the dry-run branch and the double-confirm prompts and
 assert the call really went through the governed path (audit row on disk) —
 the regression test for the "CLI writes were unaudited" line-wide fix.
@@ -35,7 +35,7 @@ def gov_home(tmp_path, monkeypatch):
 @pytest.fixture
 def cache_conn(monkeypatch):
     """A fake redis connection wired into the governed write module."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     conn = redis_conn(config={"maxmemory-policy": "noeviction"})
     monkeypatch.setattr(gov, "_get_connection", lambda target=None: conn)
@@ -45,7 +45,7 @@ def cache_conn(monkeypatch):
 @pytest.fixture
 def broker_conn(monkeypatch):
     """A fake rabbitmq connection wired into the governed write module."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     conn = rabbit_conn({
         ("GET", "/api/queues/%2F/orders"): {

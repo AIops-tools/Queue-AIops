@@ -159,7 +159,7 @@ def test_queue_list_carries_the_standard_envelope():
 
 @pytest.mark.unit
 def test_undo_list_envelope_measures_truncation(monkeypatch):
-    from mcp_server.tools import undo as undo_tools
+    from queue_aiops.mcp_server.tools import undo as undo_tools
 
     rows = [
         {

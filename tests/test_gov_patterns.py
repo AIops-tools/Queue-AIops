@@ -2,7 +2,7 @@
 
 Portable across the whole tool line: references ONLY
 ``queue_aiops.governance.patterns`` and binds state to an isolated home via
-``QUEUE_AIOPS_HOME``. No ops / cli / connection / mcp_server imports.
+``QUEUE_AIOPS_HOME``. No ops / cli / connection / queue_aiops.mcp_server imports.
 
 Exercises pattern loading + signature validation, the armable preconditions,
 skill/tool/target matching, rate limiting, the circuit breaker's state

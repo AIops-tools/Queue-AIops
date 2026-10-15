@@ -244,7 +244,7 @@ def _scanned_sources():
     by the drift gate, so it is not this repo's to edit.
     """
     root = Path(ops.__file__).parents[2]
-    found = sorted(root.glob("queue_aiops/**/*.py")) + sorted(root.glob("mcp_server/**/*.py"))
+    found = sorted(root.glob("queue_aiops/**/*.py"))  # includes queue_aiops/mcp_server
     files = [p for p in found if "governance" not in p.parts]
     assert len(files) > 10, f"source sweep found only {len(files)} modules — the glob is wrong"
     return files

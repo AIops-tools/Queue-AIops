@@ -44,7 +44,7 @@ def gov_home(tmp_path, monkeypatch):
 
 
 def _wire(monkeypatch, routes):
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     conn = rabbit_conn(routes)
     monkeypatch.setattr(gov, "_get_connection", lambda target=None: conn)

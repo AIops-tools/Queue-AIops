@@ -61,7 +61,7 @@ def wire_redis(monkeypatch):
     for mod in ("analysis", "redis_reads", "overview"):
         import importlib
 
-        m = importlib.import_module(f"mcp_server.tools.{mod}")
+        m = importlib.import_module(f"queue_aiops.mcp_server.tools.{mod}")
         monkeypatch.setattr(m, "_get_connection", lambda target=None, _c=conn: _c)
     return conn
 
@@ -71,7 +71,7 @@ def wire_redis(monkeypatch):
 
 @pytest.mark.unit
 def test_redis_read_wrappers_hit_expected_commands(wire_redis):
-    from mcp_server.tools import redis_reads as t
+    from queue_aiops.mcp_server.tools import redis_reads as t
 
     assert t.redis_server_info()["version"] == "7.2.5"
     assert t.redis_memory_stats()["usedPctOfMax"] == 92.0
@@ -84,7 +84,7 @@ def test_redis_read_wrappers_hit_expected_commands(wire_redis):
 
 @pytest.mark.unit
 def test_rabbit_read_wrappers_hit_expected_endpoints(monkeypatch):
-    from mcp_server.tools import rabbit_reads as t
+    from queue_aiops.mcp_server.tools import rabbit_reads as t
 
     conn = rabbit_conn({
         ("GET", "/api/overview"): {"rabbitmq_version": "3.13.2",
@@ -113,7 +113,7 @@ def test_rabbit_read_wrappers_hit_expected_endpoints(monkeypatch):
 
 @pytest.mark.unit
 def test_queue_overview_wrapper_dispatches_by_platform(wire_redis):
-    from mcp_server.tools import overview as t
+    from queue_aiops.mcp_server.tools import overview as t
 
     out = t.queue_overview()
     assert out["platform"] == "redis"
@@ -125,7 +125,7 @@ def test_queue_overview_wrapper_dispatches_by_platform(wire_redis):
 
 @pytest.mark.unit
 def test_memory_pressure_rca_pulls_live_and_flags_noeviction_oom(wire_redis):
-    from mcp_server.tools import analysis as t
+    from queue_aiops.mcp_server.tools import analysis as t
 
     out = t.redis_memory_pressure_rca()
     assert out["pressure"] is True
@@ -137,7 +137,7 @@ def test_memory_pressure_rca_pulls_live_and_flags_noeviction_oom(wire_redis):
 
 @pytest.mark.unit
 def test_latency_rca_pulls_live_slowlog_and_stalls(wire_redis):
-    from mcp_server.tools import analysis as t
+    from queue_aiops.mcp_server.tools import analysis as t
 
     out = t.redis_latency_rca()
     top = out["slowlogPatterns"][0]
@@ -149,7 +149,7 @@ def test_latency_rca_pulls_live_slowlog_and_stalls(wire_redis):
 
 @pytest.mark.unit
 def test_memory_rca_injected_telemetry_skips_live_pull():
-    from mcp_server.tools import analysis as t
+    from queue_aiops.mcp_server.tools import analysis as t
 
     out = t.redis_memory_pressure_rca(telemetry={
         "memory": {"usedPctOfMax": 20.0, "maxmemoryBytes": 1000,
@@ -161,7 +161,7 @@ def test_memory_rca_injected_telemetry_skips_live_pull():
 
 @pytest.mark.unit
 def test_backlog_rca_pulls_live_queues_and_classifies_no_consumers(monkeypatch):
-    from mcp_server.tools import analysis as t
+    from queue_aiops.mcp_server.tools import analysis as t
 
     conn = rabbit_conn({
         ("GET", "/api/queues"): [
@@ -178,7 +178,7 @@ def test_backlog_rca_pulls_live_queues_and_classifies_no_consumers(monkeypatch):
 
 @pytest.mark.unit
 def test_churn_analysis_pulls_live_redis_snapshot_and_flags_reconnects(wire_redis):
-    from mcp_server.tools import analysis as t
+    from queue_aiops.mcp_server.tools import analysis as t
 
     out = t.connection_churn_analysis()
     assert out["platform"] == "redis"
@@ -189,7 +189,7 @@ def test_churn_analysis_pulls_live_redis_snapshot_and_flags_reconnects(wire_redi
 
 @pytest.mark.unit
 def test_rca_tool_sanitises_broker_failure_into_error_envelope(monkeypatch):
-    from mcp_server.tools import analysis as t
+    from queue_aiops.mcp_server.tools import analysis as t
 
     def boom(_target=None):
         raise ValueError("redis down: 10.0.0.1:6379 unreachable")
@@ -202,8 +202,8 @@ def test_rca_tool_sanitises_broker_failure_into_error_envelope(monkeypatch):
 
 @pytest.mark.unit
 def test_read_and_rca_tools_are_low_risk():
-    from mcp_server.tools import analysis as a
-    from mcp_server.tools import redis_reads as r
+    from queue_aiops.mcp_server.tools import analysis as a
+    from queue_aiops.mcp_server.tools import redis_reads as r
 
     for fn in (a.redis_memory_pressure_rca, a.redis_latency_rca,
                a.rabbitmq_queue_backlog_rca, a.connection_churn_analysis,

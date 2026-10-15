@@ -134,7 +134,7 @@ def redis_config_set(
     dry_run: DryRunOption = False,
 ) -> None:
     """Set one config parameter (reversible — prior value captured for undo)."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         # Through the governed call: redis_config_set refuses the self-affecting
@@ -160,7 +160,7 @@ def redis_kill_client(
     dry_run: DryRunOption = False,
 ) -> None:
     """Disconnect one client (irreversible; its info is captured as priorState)."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     who = str(client_id) if client_id else addr
     if dry_run:

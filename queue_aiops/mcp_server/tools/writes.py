@@ -13,8 +13,8 @@ delete_policy = medium.
 
 from typing import Any, Optional
 
-from mcp_server._shared import _get_connection, mcp, tool_errors
 from queue_aiops.governance import governed_tool
+from queue_aiops.mcp_server._shared import _get_connection, mcp, tool_errors
 from queue_aiops.ops import writes as ops
 
 # ── undo descriptors (built from the fetched before-state) ──────────────────

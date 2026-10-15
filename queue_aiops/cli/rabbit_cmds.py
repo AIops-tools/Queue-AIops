@@ -155,7 +155,7 @@ def rabbit_purge(
     dry_run: DryRunOption = False,
 ) -> None:
     """Purge all ready messages from a queue (IRREVERSIBLE, risk=high)."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         # Through the governed twin, so the preview is audited and any harness
@@ -178,7 +178,7 @@ def rabbit_delete_queue(
     dry_run: DryRunOption = False,
 ) -> None:
     """Delete a queue (risk=high; undo re-declares the captured definition)."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         # Through the governed twin, so the preview is audited and any harness
@@ -207,7 +207,7 @@ def rabbit_declare_queue(
     dry_run: DryRunOption = False,
 ) -> None:
     """Declare (create) a queue (undo deletes it when newly created)."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         # Through the governed twin, so the preview is audited and any harness
@@ -242,7 +242,7 @@ def rabbit_set_policy(
     dry_run: DryRunOption = False,
 ) -> None:
     """Create/update a policy (reversible — prior policy captured for undo)."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     try:
         definition_obj = json.loads(definition)
@@ -276,7 +276,7 @@ def rabbit_delete_policy(
     dry_run: DryRunOption = False,
 ) -> None:
     """Delete a policy (reversible — its definition is captured for undo)."""
-    from mcp_server.tools import writes as gov
+    from queue_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         # Through the governed twin, so the preview is audited and any harness
