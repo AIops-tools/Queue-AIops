@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.11.0 — 2026-10-15
 
 ### Fixed
 - The MCP server moved from a top-level `mcp_server` package to
