@@ -95,3 +95,7 @@ own enumeration.
   rendered the identical CLIENT LIST `age` field as an `int`. Fixed with
   `as_int()` and a type-asserting regression test (equality cannot catch it:
   `49 == 49.0`); `ageSeconds` re-confirmed as `4` (int) on a live re-kill.
+
+## Governance hardening — local synthetic verification (2026-10-30)
+
+The shared governance tests exercise a durable `pending` row before a write, refusal when the audit DB cannot persist that row, a visible pending row after finalization failure, explicit reconciliation to `unknown`, async/preview parity, result minimization, and metadata-only telemetry with `AIOPS_WORKFLOW_ID`. The tests use a temporary SQLite DB and synthetic tools; they do not claim a new live upstream write was performed. Existing audit rows and rotated archives from earlier releases are not automatically scrubbed. A pending intent from another process is never auto-reconciled. On POSIX the rotation/intent lock spans processes; on Windows it currently protects only threads in this process.

@@ -2,6 +2,8 @@
 
 # Queue AIops
 
+> **Audit availability:** Real writes require a committed `pending` audit row and stop before contacting the platform if storage is unavailable. Reads and previews may continue with a warning; new audit rows store outcome summaries rather than full responses.
+
 **Governed AI-ops for redis + rabbitmq.** queue-aiops is for the team running
 their own cache and message broker — a redis that "suddenly eats memory", a
 rabbitmq whose queues quietly grow until publishers block — without an

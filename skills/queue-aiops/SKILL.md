@@ -30,6 +30,8 @@ compatibility: >
 
 # Queue AIops
 
+> **Audit availability:** Real writes require a durable audit intent. Reads and previews can continue if audit storage fails; check the warning and audit health before relying on their audit trail.
+
 > **Disclaimer**: Community-maintained open-source project, **not affiliated with, endorsed by, or sponsored by the Redis or RabbitMQ projects or their respective owners.** Redis and RabbitMQ are trademarks of their respective owners. Source at [github.com/AIops-tools/Queue-AIops](https://github.com/AIops-tools/Queue-AIops) under the MIT license.
 
 Governed broker operations — **28 MCP tools** across **redis** (RESP client) and
@@ -219,7 +221,7 @@ gate.
 
 - **Audit is the guarantee, and it is not bypassable.** Every operation — MCP
   and CLI alike — is logged to `~/.queue-aiops/audit.db` (relocatable via
-  `QUEUE_AIOPS_HOME`): params (secrets redacted), result, status, duration, and
+  `QUEUE_AIOPS_HOME`): params (secrets redacted), outcome summary, status, duration, and
   the risk tier. The CLI writes the same row the MCP path does.
 - `QUEUE_AUDIT_APPROVED_BY` / `QUEUE_AUDIT_RATIONALE` are optional annotations
   recorded on the audit row (who/why); they are never required and never block.
